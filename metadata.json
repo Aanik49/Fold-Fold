@@ -1,0 +1,6 @@
+{
+  "name": "Fold Fold",
+  "description": "A Bauhaus Risograph origami puzzle game with intuitive swipe folding, 5 categories, 100 geometric levels, one-way hazard tape, duplex ink symbols, and procedural marimba audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

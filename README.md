@@ -1,11 +1,23 @@
-<div align="center">
+# Fold Fold — Bauhaus Risograph Origami Puzzle
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+An origami paper-folding puzzle game with intuitive swipe mechanics, 5 themed categories × 20 BFS-verified levels (100 levels total), one-way hazard tape, duplex flip ink, wild prisms, brass eyelet pins, and procedural marimba audio.
 
-  <h1>Built with AI Studio</h2>
+## Download Android APK via GitHub (No Android Studio Needed)
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+This repository includes an automated GitHub Actions workflow (`.github/workflows/build-android-apk.yml`) that compiles a standalone offline **`Fold-Fold.apk`** directly in the cloud.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+### Steps
+1. **Push / Export** this project to a GitHub repository (on the `main` or `master` branch).
+2. Open your repository on GitHub and click the **Actions** tab.
+   - The **Build Android APK** workflow starts automatically on push (you can also trigger it anytime via **Actions → Build Android APK → Run workflow**).
+3. Wait ~2–3 minutes for the green checkmark, then download **`Fold-Fold.apk`** from either:
+   - **GitHub Releases** (right sidebar → **Releases** → **`Fold-Fold.apk`** — direct download link!), or
+   - Inside the completed workflow run under **Artifacts → `Fold-Fold-Android-APK`**.
+4. Transfer or open `Fold-Fold.apk` on your Android phone to install.
 
-</div>
+## Local Web Development
+
+```bash
+npm install
+npm run dev
+```

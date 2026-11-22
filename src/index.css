@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+:root {
+  --newsprint: #F2EFE9;
+  --newsprint-dark: #E5E0D5;
+  --paper-white: #FAF8F5;
+  --signal-red: #E63946;
+  --cobalt-blue: #1D3557;
+  --mustard-yellow: #F4A261;
+  --riso-teal: #1E6B5C;
+  --charcoal-ink: #141414;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--newsprint);
+  color: var(--charcoal-ink);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-poster {
+  font-family: 'Archivo Black', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-mono-riso {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .riso-card {
+    background-color: var(--paper-white);
+    border: 2.5px solid var(--charcoal-ink);
+    box-shadow: 5px 5px 0px var(--charcoal-ink);
+  }
+
+  .riso-card-sm {
+    background-color: var(--paper-white);
+    border: 2px solid var(--charcoal-ink);
+    box-shadow: 3px 3px 0px var(--charcoal-ink);
+  }
+
+  .riso-btn {
+    background-color: var(--paper-white);
+    color: var(--charcoal-ink);
+    border: 2.5px solid var(--charcoal-ink);
+    box-shadow: 3px 3px 0px var(--charcoal-ink);
+    transition: transform 0.14s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.14s cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 0.14s ease,
+      color 0.14s ease;
+  }
+
+  .riso-btn:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0px var(--charcoal-ink);
+  }
+
+  .riso-btn:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0px var(--charcoal-ink);
+  }
+
+  .riso-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    box-shadow: 2px 2px 0px rgba(20, 20, 20, 0.35);
+  }
+
+  .riso-btn:focus-visible {
+    outline: 3px solid var(--signal-red);
+    outline-offset: 2px;
+  }
+}
+
+.riso-grain-bg {
+  background-color: var(--newsprint);
+  background-image: radial-gradient(rgba(20, 20, 20, 0.08) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+.riso-scroll::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.riso-scroll::-webkit-scrollbar-track {
+  background: var(--newsprint-dark);
+}
+
+.riso-scroll::-webkit-scrollbar-thumb {
+  background: var(--charcoal-ink);
+  border-radius: 999px;
+}
+
+@keyframes riso-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.86) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes star-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.1) rotate(-18deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(0.92) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes splash-plate-red {
+  0% {
+    opacity: 0;
+    transform: translate(-14px, -10px);
+  }
+  65% {
+    opacity: 0.9;
+    transform: translate(3px, 2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes splash-plate-blue {
+  0% {
+    opacity: 0;
+    transform: translate(14px, 10px);
+  }
+  65% {
+    opacity: 0.9;
+    transform: translate(-3px, -2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes splash-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.animate-riso-pop {
+  animation: riso-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-star-stamp {
+  animation: star-stamp 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-plate-red {
+  animation: splash-plate-red 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-plate-blue {
+  animation: splash-plate-blue 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-splash-bar {
+  transform-origin: left center;
+  animation: splash-progress 1.95s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-riso-pop,
+  .animate-star-stamp,
+  .animate-plate-red,
+  .animate-plate-blue,
+  .animate-splash-bar {
+    animation: none !important;
+  }
+}

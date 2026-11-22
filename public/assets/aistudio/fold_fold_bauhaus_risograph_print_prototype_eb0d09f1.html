@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FOLD FOLD — Bauhaus Risograph Print Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --newsprint: #F2EFE9;
+      --newsprint-dark: #E6E1D6;
+      --signal-red: #E63946;
+      --cobalt-blue: #1D3557;
+      --mustard-yellow: #F4A261;
+      --charcoal-ink: #141414;
+      --paper-white: #FAF8F5;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--newsprint);
+      color: var(--charcoal-ink);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      touch-action: none;
+    }
+
+    .font-poster {
+      font-family: 'Archivo Black', 'Space Grotesk', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .font-mono-riso {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Authentic Risograph ink grain & halftone dot utility */
+    .riso-card {
+      background-color: var(--paper-white);
+      border: 2.5px solid var(--charcoal-ink);
+      box-shadow: 5px 5px 0px var(--charcoal-ink);
+    }
+
+    .riso-btn {
+      background-color: var(--paper-white);
+      border: 2.5px solid var(--charcoal-ink);
+      box-shadow: 3px 3px 0px var(--charcoal-ink);
+      transition: transform 0.12s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.12s ease, background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .riso-btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0px var(--charcoal-ink);
+    }
+
+    .riso-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px var(--charcoal-ink);
+    }
+
+    .riso-btn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      box-shadow: 2px 2px 0px rgba(20, 20, 20, 0.4);
+    }
+
+    /* Custom scrollbar for UX Specs Drawer */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: var(--newsprint-dark);
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: var(--charcoal-ink);
+    }
+  </style>
+</head>
+<body class="relative w-full h-full overflow-hidden select-none">
+
+  <!-- Fullscreen Interactive Risograph Canvas (Renders Lobby Poster & Gameplay Stage) -->
+  <canvas id="risoCanvas" class="block w-full h-full"></canvas>
+
+  <!-- Minimalist Swiss Exhibition Top Bar -->
+  <header class="fixed top-0 left-0 right-0 z-20 pointer-events-none px-3.5 pt-3.5 sm:px-6 sm:pt-5 flex items-start justify-between gap-2">
+    
+    <!-- Top-Left: View Switcher & Gameplay Moves/Par Telemetry -->
+    <div class="pointer-events-auto flex flex-wrap items-center gap-2 sm:gap-3">
+      <!-- Lobby / Play Mode Switcher -->
+      <div class="riso-card rounded-xl p-1 flex items-center gap-1">
+        <button id="btnModeLobby" onclick="game.setView('lobby')"
+          class="font-mono-riso text-xs font-extrabold uppercase px-3 py-1.5 rounded-lg transition-colors">
+          LOBBY
+        </button>
+        <button id="btnModePlay" onclick="game.setView('play')"
+          class="font-mono-riso text-xs font-extrabold uppercase px-3 py-1.5 rounded-lg transition-colors">
+          PLAY
+        </button>
+      </div>
+
+      <!-- Gameplay-Only Moves / Par & Stars Pill (Matches Mockup Header) -->
+      <div id="gameplayMovesBar" class="hidden riso-card rounded-xl px-3.5 py-1.5 sm:px-4 sm:py-2 items-center gap-3">
+        <div class="font-poster text-sm sm:text-base tracking-tight uppercase flex items-center gap-1.5 border-b-2 border-[#141414] pb-0.5">
+          <span>MOVES:</span>
+          <span id="hudMovesVal" class="text-[#E63946]">0</span>
+          <span>/</span>
+          <span id="hudParVal" class="text-[#E63946]">2</span>
+          <span>PAR</span>
+        </div>
+
+        <!-- 3 Crisp Risograph Par Stars -->
+        <div id="hudParStars" class="flex items-center gap-1 text-base sm:text-lg leading-none" aria-label="Par Star Rating">
+          <span class="text-[#E63946]">★</span>
+          <span class="text-[#E63946]">★</span>
+          <span class="text-[#E63946]">★</span>
+        </div>
+      </div>
+
+      <!-- Gameplay-Only Sheet Selector Badge -->
+      <div id="gameplaySheetBadge" class="hidden md:flex riso-card rounded-xl px-3 py-1.5 items-center gap-2">
+        <span id="hudSheetNum" class="font-mono-riso text-xs font-extrabold px-1.5 py-0.5 bg-[#1D3557] text-[#FAF8F5] rounded">01</span>
+        <span id="hudSheetName" class="font-bold text-xs uppercase tracking-wider">FIRST CREASE</span>
+      </div>
+    </div>
+
+    <!-- Top-Right: Audio Mute Toggle & Design Specs Drawer -->
+    <div class="pointer-events-auto flex items-center gap-2">
+      <button id="btnAudioToggle" title="Toggle Risograph Foley & Marimba Audio (M)"
+        class="riso-btn w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center">
+        <svg id="iconSoundOn" class="w-5 h-5 text-[#141414]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+        </svg>
+        <svg id="iconSoundOff" class="w-5 h-5 text-[#E63946] hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+        </svg>
+      </button>
+
+      <button id="btnSpecsToggle"
+        class="riso-btn h-10 sm:h-11 px-3.5 rounded-xl flex items-center gap-2 font-mono-riso text-xs font-extrabold uppercase">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#E63946] border border-[#141414]"></span>
+        <span>RISO SPECS</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Gameplay Bottom Controls (Circular-Arrow UNDO & RETRY matching the mockup) -->
+  <footer id="gameplayBottomControls" class="hidden fixed bottom-3.5 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex-col items-center gap-2.5 w-full max-w-md px-4 pointer-events-none">
+    
+    <!-- Circular-Arrow UNDO & RETRY Pair -->
+    <div class="pointer-events-auto flex items-center justify-center gap-5 sm:gap-7">
+      <button id="btnUndo" disabled onclick="game.undo()" title="Undo Last Fold (Z)"
+        class="riso-btn px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 font-poster text-xs sm:text-sm uppercase tracking-wide">
+        <span>UNDO</span>
+        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-[#141414]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
+
+      <button id="btnRetry" onclick="game.retryLevel()" title="Retry Sheet (R)"
+        class="riso-btn px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 font-poster text-xs sm:text-sm uppercase tracking-wide">
+        <span>RETRY</span>
+        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-[#141414]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Subtle Contextual Rule / Instruction Strip -->
+    <div class="pointer-events-none px-3.5 py-1 rounded-full bg-[#141414] text-[#FAF8F5] font-mono-riso text-[10px] sm:text-[11px] font-semibold tracking-wide text-center shadow-md max-w-full truncate">
+      <span id="gameplayHintStrip">SWIPE OR CLICK A CREASE TO FOLD MATCHING INK SYMBOLS</span>
+    </div>
+  </footer>
+
+  <!-- Victory Stamp Celebration Modal Overlay -->
+  <div id="victoryModal" class="fixed inset-0 z-30 pointer-events-none flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+    <div id="victoryCard" class="riso-card rounded-2xl p-6 sm:p-7 max-w-sm w-full transform scale-95 transition-transform duration-200 relative overflow-hidden">
+      
+      <!-- Top Exhibition Stamp Header -->
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-mono-riso text-[11px] font-extrabold uppercase px-2.5 py-1 bg-[#E63946] text-white border-2 border-[#141414] rounded">
+          PRINT CLEARED
+        </span>
+        <div id="victoryStars" class="flex items-center gap-1 text-2xl leading-none">
+          <span class="text-[#E63946]">★</span>
+          <span class="text-[#E63946]">★</span>
+          <span class="text-[#E63946]">★</span>
+        </div>
+      </div>
+
+      <h2 id="victoryHeading" class="font-poster text-2xl uppercase leading-tight mb-1.5 text-[#141414]">
+        FIRST CREASE
+      </h2>
+      <p id="victorySubcopy" class="text-xs font-medium text-[#141414]/80 leading-relaxed mb-5">
+        Every matching ink symbol aligned cleanly onto the paper stock.
+      </p>
+
+      <!-- Risograph Telemetry Boxes -->
+      <div class="grid grid-cols-3 gap-2.5 mb-5">
+        <div class="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+          <div class="font-mono-riso text-[10px] font-bold uppercase opacity-65">MOVES</div>
+          <div id="statMovesUsed" class="font-poster text-lg text-[#1D3557]">2</div>
+        </div>
+        <div class="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+          <div class="font-mono-riso text-[10px] font-bold uppercase opacity-65">PAR</div>
+          <div id="statMovesPar" class="font-poster text-lg text-[#E63946]">2</div>
+        </div>
+        <div class="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+          <div class="font-mono-riso text-[10px] font-bold uppercase opacity-65">STOCK</div>
+          <div id="statPlyCount" class="font-poster text-lg text-[#141414]">4 PLY</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="game.setView('lobby')" class="riso-btn flex-1 py-3 px-3 rounded-xl font-mono-riso text-xs font-extrabold uppercase">
+          LOBBY
+        </button>
+        <button onclick="game.retryLevel()" class="riso-btn flex-1 py-3 px-3 rounded-xl font-mono-riso text-xs font-extrabold uppercase">
+          RETRY
+        </button>
+        <button id="btnNextCard" onclick="game.nextLevel()"
+          class="riso-btn flex-[1.8] py-3 px-4 rounded-xl font-poster text-xs sm:text-sm uppercase tracking-wide bg-[#1D3557] text-[#FAF8F5]">
+          NEXT CARD &gt;&gt;&gt;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide-Over Bauhaus Risograph Design & UX Specs Drawer -->
+  <aside id="specsDrawer" class="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-[#FAF8F5] border-l-[3px] border-[#141414] shadow-[-8px_0_0_rgba(20,20,20,0.18)] transform translate-x-full transition-transform duration-250 ease-out flex flex-col">
+    <div class="p-5 sm:p-6 border-b-[2.5px] border-[#141414] bg-[#F2EFE9] flex items-center justify-between">
+      <div>
+        <span class="font-mono-riso text-[10px] font-extrabold uppercase tracking-widest text-[#E63946]">SWISS EXHIBITION EDITION</span>
+        <h2 class="font-poster text-lg uppercase text-[#141414] mt-0.5">BAUHAUS RISOGRAPH SPECS</h2>
+      </div>
+      <button onclick="toggleSpecsDrawer(false)" class="riso-btn w-9 h-9 rounded-lg flex items-center justify-center font-poster text-sm">
+        ✕
+      </button>
+    </div>
+
+    <div class="p-5 sm:p-6 overflow-y-auto custom-scroll space-y-5 text-xs leading-relaxed text-[#141414]">
+      
+      <!-- 01. Risograph Ink & Newsprint Tokens -->
+      <section class="space-y-2.5">
+        <div class="font-mono-riso text-[11px] font-extrabold uppercase tracking-wider text-[#1D3557]">
+          01 / RISOGRAPH INK & STOCK TOKENS
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="p-2.5 rounded-xl border-2 border-[#141414] bg-[#F2EFE9] flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded bg-[#F2EFE9] border-2 border-[#141414] shrink-0"></span>
+            <div>
+              <div class="font-bold">Newsprint Stock</div>
+              <div class="font-mono-riso text-[10px] opacity-70">#F2EFE9</div>
+            </div>
+          </div>
+          <div class="p-2.5 rounded-xl border-2 border-[#141414] bg-[#F2EFE9] flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded bg-[#E63946] border-2 border-[#141414] shrink-0"></span>
+            <div>
+              <div class="font-bold">Signal Red</div>
+              <div class="font-mono-riso text-[10px] opacity-70">#E63946</div>
+            </div>
+          </div>
+          <div class="p-2.5 rounded-xl border-2 border-[#141414] bg-[#F2EFE9] flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded bg-[#1D3557] border-2 border-[#141414] shrink-0"></span>
+            <div>
+              <div class="font-bold">Cobalt Blue</div>
+              <div class="font-mono-riso text-[10px] opacity-70">#1D3557</div>
+            </div>
+          </div>
+          <div class="p-2.5 rounded-xl border-2 border-[#141414] bg-[#F2EFE9] flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded bg-[#F4A261] border-2 border-[#141414] shrink-0"></span>
+            <div>
+              <div class="font-bold">Mustard Yellow</div>
+              <div class="font-mono-riso text-[10px] opacity-70">#F4A261</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02. Lobby & Gameplay Visual Language -->
+      <section class="space-y-2">
+        <div class="font-mono-riso text-[11px] font-extrabold uppercase tracking-wider text-[#1D3557]">
+          02 / VISUAL & TACTILE MECHANICS
+        </div>
+        <div class="p-3.5 rounded-xl border-2 border-[#141414] bg-[#F2EFE9] space-y-2">
+          <p><strong>Fanned Archival Index Cards:</strong> Lobby cards mimic numbered physical divider tabs (<code>01–04</code>) with miniature geometric grid previews, earned star stamps, and a tactile <code>PLAY &gt;&gt;&gt;</code> stamp.</p>
+          <p><strong>Slight Ink Misregistration:</strong> Geometric symbols render with an authentic 1.5px Risograph overprint offset and multiply-blended halftone dot shadows.</p>
+          <p><strong>Duplex Colored Undersides:</strong> Folding any flap reveals its vibrant Cobalt Blue, Signal Red, or Mustard Yellow backing stock curling over the crease.</p>
+          <p><strong>Hazard One-Way Tape:</strong> Mustard &amp; Charcoal chevron tape locks a crease to a single fold direction; folding against the chevrons triggers a physical spring-back shake.</p>
+        </div>
+      </section>
+
+      <!-- 03. Direct Sheet Jump -->
+      <section class="space-y-2 pt-2 border-t-2 border-[#141414]">
+        <div class="font-mono-riso text-[11px] font-extrabold uppercase tracking-wider text-[#E63946]">
+          03 / ARCHIVAL INDEX JUMP
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="game.loadLevel(0, true); toggleSpecsDrawer(false);" class="riso-btn p-2.5 rounded-xl text-left">
+            <div class="font-mono-riso text-[10px] font-extrabold text-[#1D3557]">CARD 01 · PAR 2</div>
+            <div class="font-poster text-xs uppercase">FIRST CREASE</div>
+          </button>
+          <button onclick="game.loadLevel(1, true); toggleSpecsDrawer(false);" class="riso-btn p-2.5 rounded-xl text-left">
+            <div class="font-mono-riso text-[10px] font-extrabold text-[#E63946]">CARD 02 · PAR 3</div>
+            <div class="font-poster text-xs uppercase">LAYERED ORDER</div>
+          </button>
+          <button onclick="game.loadLevel(2, true); toggleSpecsDrawer(false);" class="riso-btn p-2.5 rounded-xl text-left">
+            <div class="font-mono-riso text-[10px] font-extrabold text-[#E63946]">CARD 03 · PAR 3</div>
+            <div class="font-poster text-xs uppercase">ONE-WAY TAPE</div>
+          </button>
+          <button onclick="game.loadLevel(3, true); toggleSpecsDrawer(false);" class="riso-btn p-2.5 rounded-xl text-left">
+            <div class="font-mono-riso text-[10px] font-extrabold text-[#141414]">CARD 04 · PAR 4</div>
+            <div class="font-poster text-xs uppercase">BAUHAUS MASTER</div>
+          </button>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Backdrop for Specs Drawer -->
+  <div id="specsBackdrop" onclick="toggleSpecsDrawer(false)" class="fixed inset-0 z-30 bg-[#141414]/35 opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * BAUHAUS RISOGRAPH PALETTE & PROCEDURAL TEXTURE PATTERNS
+     * ============================================================================
+     */
+    const RISO = {
+      newsprint: '#F2EFE9',
+      newsprintDark: '#E5E0D5',
+      paperWhite: '#FAF8F5',
+      paperShaded: '#EFECE4',
+      red: '#E63946',
+      blue: '#1D3557',
+      yellow: '#F4A261',
+      ink: '#141414'
+    };
+
+    function createHalftonePattern(dotColor = 'rgba(20, 20, 20, 0.28)', spacing = 6, radius = 1.25) {
+      const pCanvas = document.createElement('canvas');
+      pCanvas.width = spacing * 2;
+      pCanvas.height = spacing * 2;
+      const pCtx = pCanvas.getContext('2d');
+      pCtx.fillStyle = dotColor;
+      // Staggered 45-degree Risograph screen angle
+      pCtx.beginPath();
+      pCtx.arc(spacing * 0.5, spacing * 0.5, radius, 0, Math.PI * 2);
+      pCtx.arc(spacing * 1.5, spacing * 1.5, radius, 0, Math.PI * 2);
+      pCtx.fill();
+      return pCanvas;
+    }
+
+    function createNewsprintGrainPattern() {
+      const gCanvas = document.createElement('canvas');
+      gCanvas.width = 140;
+      gCanvas.height = 140;
+      const gCtx = gCanvas.getContext('2d');
+      for (let i = 0; i < 650; i++) {
+        const x = Math.random() * 140;
+        const y = Math.random() * 140;
+        const alpha = 0.02 + Math.random() * 0.03;
+        gCtx.fillStyle = i % 2 === 0 ? `rgba(20, 20, 20, ${alpha})` : `rgba(255, 255, 255, ${alpha * 1.4})`;
+        gCtx.fillRect(x, y, 1.3, 1.3);
+      }
+      return gCanvas;
+    }
+
+    /**
+     * ============================================================================
+     * ZERO-DEPENDENCY WEB AUDIO SYNTHESIZER (Cardstock, Vinyl Clicks & Marimba)
+     * ============================================================================
+     */
+    class RisoSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      unlock() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playClick(pitch = 620) {
+        if (this.muted) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.032);
+
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.036);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+
+      playCardstockFold() {
+        if (this.muted) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const duration = 0.22;
+        const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1150, now);
+        filter.frequency.exponentialRampToValueAtTime(2400, now + 0.1);
+        filter.Q.value = 1.4;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+
+        // Crisp cardstock snap thump
+        const osc = this.ctx.createOscillator();
+        const thud = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(175, now + 0.14);
+        osc.frequency.exponentialRampToValueAtTime(62, now + 0.23);
+        thud.gain.setValueAtTime(0.1, now + 0.14);
+        thud.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(thud);
+        thud.connect(this.ctx.destination);
+        osc.start(now + 0.14);
+        osc.stop(now + 0.25);
+      }
+
+      playMarimbaMatch(combo = 0) {
+        if (this.muted) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + 0.16;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        const root = notes[combo % notes.length];
+
+        [root, root * 1.5].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.035);
+
+          gain.gain.setValueAtTime(0.0001, now + i * 0.035);
+          gain.gain.linearRampToValueAtTime(i === 0 ? 0.12 : 0.055, now + i * 0.035 + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0005, now + i * 0.035 + 0.45);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.035);
+          osc.stop(now + i * 0.035 + 0.48);
+        });
+      }
+
+      playBlockedThud() {
+        if (this.muted) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.linearRampToValueAtTime(85, now + 0.11);
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 380;
+
+        gain.gain.setValueAtTime(0.11, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      }
+
+      playVictoryFanfare() {
+        if (this.muted) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + 0.18;
+        const chord = [523.25, 659.25, 783.99, 1046.50];
+        chord.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.055);
+
+          gain.gain.setValueAtTime(0.0001, now + idx * 0.055);
+          gain.gain.linearRampToValueAtTime(0.09, now + idx * 0.055 + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0005, now + idx * 0.055 + 0.9);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.055);
+          osc.stop(now + idx * 0.055 + 0.95);
+        });
+      }
+    }
+
+    /**
+     * ============================================================================
+     * RISOGRAPH GEOMETRIC SYMBOLS (With Authentic Slight Ink Misregistration)
+     * ============================================================================
+     */
+    const RISO_SYMBOLS = {
+      circle: {
+        name: 'Red Circle',
+        color: RISO.red,
+        draw(ctx, cx, cy, r) {
+          ctx.save();
+          // Subtle Risograph ink misregistration ghost
+          ctx.strokeStyle = 'rgba(244, 162, 97, 0.45)';
+          ctx.lineWidth = Math.max(4, r * 0.26);
+          ctx.beginPath();
+          ctx.arc(cx + 1.6, cy + 1.4, r * 0.62, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Primary Signal Red bold ring
+          ctx.strokeStyle = RISO.red;
+          ctx.lineWidth = Math.max(4.5, r * 0.28);
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      },
+      cross: {
+        name: 'Blue Cross',
+        color: RISO.blue,
+        draw(ctx, cx, cy, r) {
+          const arm = r * 0.56;
+          const lw = Math.max(4.5, r * 0.28);
+          ctx.save();
+          ctx.lineCap = 'butt';
+
+          // Subtle misregistration offset
+          ctx.strokeStyle = 'rgba(230, 57, 70, 0.28)';
+          ctx.lineWidth = lw;
+          ctx.beginPath();
+          ctx.moveTo(cx - arm + 1.5, cy - arm + 1.5);
+          ctx.lineTo(cx + arm + 1.5, cy + arm + 1.5);
+          ctx.moveTo(cx + arm + 1.5, cy - arm + 1.5);
+          ctx.lineTo(cx - arm + 1.5, cy + arm + 1.5);
+          ctx.stroke();
+
+          // Primary Cobalt Blue X
+          ctx.strokeStyle = RISO.blue;
+          ctx.lineWidth = lw;
+          ctx.beginPath();
+          ctx.moveTo(cx - arm, cy - arm);
+          ctx.lineTo(cx + arm, cy + arm);
+          ctx.moveTo(cx + arm, cy - arm);
+          ctx.lineTo(cx - arm, cy + arm);
+          ctx.stroke();
+          ctx.restore();
+        }
+      },
+      triangle: {
+        name: 'Yellow Triangle',
+        color: RISO.yellow,
+        draw(ctx, cx, cy, r) {
+          const h = r * 0.66;
+          ctx.save();
+          // Misregistration offset
+          ctx.fillStyle = 'rgba(20, 20, 20, 0.22)';
+          ctx.beginPath();
+          ctx.moveTo(cx + 2, cy - h + 2);
+          ctx.lineTo(cx + h + 2, cy + h * 0.82 + 2);
+          ctx.lineTo(cx - h + 2, cy + h * 0.82 + 2);
+          ctx.closePath();
+          ctx.fill();
+
+          // Primary Mustard Yellow Triangle with crisp charcoal ink stroke
+          ctx.fillStyle = RISO.yellow;
+          ctx.strokeStyle = RISO.ink;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - h);
+          ctx.lineTo(cx + h, cy + h * 0.82);
+          ctx.lineTo(cx - h, cy + h * 0.82);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      },
+      square: {
+        name: 'Charcoal Square',
+        color: RISO.ink,
+        draw(ctx, cx, cy, r) {
+          const half = r * 0.54;
+          ctx.save();
+          // Signal Red offset underprint
+          ctx.fillStyle = RISO.red;
+          ctx.fillRect(cx - half + 2.5, cy - half + 2.5, half * 2, half * 2);
+
+          // Primary Charcoal Square
+          ctx.fillStyle = RISO.ink;
+          ctx.fillRect(cx - half, cy - half, half * 2, half * 2);
+          ctx.restore();
+        }
+      }
+    };
+
+    /**
+     * ============================================================================
+     * 4 VERIFIED PAR-SOLVABLE BAUHAUS RISOGRAPH PUZZLES
+     * ============================================================================
+     */
+    const LEVELS = [
+      {
+        id: 1,
+        code: '01',
+        title: 'FIRST CREASE',
+        cardColor: RISO.blue,
+        cardText: '#FAF8F5',
+        rows: 2,
+        cols: 3,
+        par: 2,
+        hint: 'SWIPE OR CLICK A CREASE TO FOLD MATCHING RED CIRCLES & BLUE CROSSES',
+        // Solution (2 folds):
+        // Fold 1: Vertical crease 2 left (col 2 -> col 1) matches (0,1)&(0,2) circles AND (1,2) cross moves to (1,1)
+        // Fold 2: Vertical crease 1 right (col 0 -> col 1) matches (1,0)&(1,1) crosses!
+        symbols: [
+          { r: 0, c: 1, type: 'circle' },
+          { r: 0, c: 2, type: 'circle' },
+          { r: 1, c: 0, type: 'cross' },
+          { r: 1, c: 2, type: 'cross' }
+        ],
+        tapes: []
+      },
+      {
+        id: 2,
+        code: '02',
+        title: 'LAYERED ORDER',
+        cardColor: RISO.red,
+        cardText: '#FAF8F5',
+        rows: 3,
+        cols: 3,
+        par: 3,
+        hint: 'FOLD IN THE RIGHT SEQUENCE SO TOP SYMBOLS DO NOT TRAP PAIRS UNDERNEATH',
+        // Solution (3 folds):
+        // Fold 1: Vertical crease 1 right (col 0 -> col 1) matches (0,0)&(0,1) circles
+        // Fold 2: Vertical crease 2 left (col 2 -> col 1) matches (1,1)&(1,2) triangles
+        // Fold 3: Horizontal crease 1 down (row 0 -> row 1) or crease 2 up matches (0,2)->(0,1) & (2,0)->(2,1) squares!
+        symbols: [
+          { r: 0, c: 0, type: 'circle' },
+          { r: 0, c: 1, type: 'circle' },
+          { r: 0, c: 2, type: 'square' },
+          { r: 1, c: 1, type: 'triangle' },
+          { r: 1, c: 2, type: 'triangle' },
+          { r: 2, c: 0, type: 'square' }
+        ],
+        tapes: []
+      },
+      {
+        id: 3,
+        code: '03',
+        title: 'ONE-WAY TAPE',
+        cardColor: RISO.yellow,
+        cardText: '#141414',
+        rows: 2,
+        cols: 4,
+        par: 3,
+        hint: 'HAZARD TAPE LOCKS CREASES TO ONE DIRECTION — FOLLOW THE CHEVRONS',
+        // Solution (3 folds):
+        // Tape at V1 allows RIGHT; Tape at V3 allows LEFT.
+        // Fold 1: V1 right (col 0 -> col 1) matches (0,0)&(0,1) circles; moves (1,0) triangle to (1,1)
+        // Fold 2: V3 left (col 3 -> col 2) matches (0,2)&(0,3) crosses; moves (1,3) triangle to (1,2)
+        // Fold 3: V2 right or left matches (1,1)&(1,2) triangles!
+        symbols: [
+          { r: 0, c: 0, type: 'circle' },
+          { r: 0, c: 1, type: 'circle' },
+          { r: 1, c: 0, type: 'triangle' },
+          { r: 0, c: 2, type: 'cross' },
+          { r: 0, c: 3, type: 'cross' },
+          { r: 1, c: 3, type: 'triangle' }
+        ],
+        tapes: [
+          { orientation: 'v', index: 1, allowDir: 'right' },
+          { orientation: 'v', index: 3, allowDir: 'left' }
+        ]
+      },
+      {
+        id: 4,
+        code: '04',
+        title: 'BAUHAUS MASTER',
+        cardColor: RISO.ink,
+        cardText: '#FAF8F5',
+        rows: 3,
+        cols: 4,
+        par: 4,
+        hint: 'COMBINE LAYERED FOLDS & ONE-WAY TAPE TO CLEAR ALL 8 SYMBOLS IN 4 MOVES',
+        // Solution (4 folds):
+        // Fold 1: H1 down (row 0 -> row 1) matches (0,0)&(1,0) circles; moves (0,1)&(0,2) crosses to (1,1)&(1,2)
+        // Fold 2: V3 left (col 3 -> col 2) matches (2,2)&(2,3) squares
+        // Fold 3: V2 left (col 2 -> col 1) matches (1,1)&(1,2) crosses
+        // Fold 4: H2 up (row 2 -> row 1) matches (1,1)&(2,1) triangles!
+        symbols: [
+          { r: 0, c: 0, type: 'circle' },
+          { r: 1, c: 0, type: 'circle' },
+          { r: 0, c: 1, type: 'cross' },
+          { r: 0, c: 2, type: 'cross' },
+          { r: 1, c: 1, type: 'triangle' },
+          { r: 2, c: 1, type: 'triangle' },
+          { r: 2, c: 2, type: 'square' },
+          { r: 2, c: 3, type: 'square' }
+        ],
+        tapes: [
+          { orientation: 'v', index: 3, allowDir: 'left' },
+          { orientation: 'h', index: 1, allowDir: 'down' }
+        ]
+      }
+    ];
+
+    /**
+     * ============================================================================
+     * BAUHAUS RISOGRAPH GAME ENGINE (LOBBY POSTER + ORIGAMI GAMEPLAY)
+     * ============================================================================
+     */
+    class BauhausFoldGame {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.sound = new RisoSoundEngine();
+
+        // Pre-bake Risograph halftone and paper grain patterns
+        this.halftoneDark = this.ctx.createPattern(createHalftonePattern('rgba(20, 20, 20, 0.34)', 5, 1.35), 'repeat');
+        this.halftoneBlue = this.ctx.createPattern(createHalftonePattern('rgba(29, 53, 87, 0.42)', 5, 1.35), 'repeat');
+        this.halftoneRed = this.ctx.createPattern(createHalftonePattern('rgba(230, 57, 70, 0.42)', 5, 1.35), 'repeat');
+        this.newsprintGrain = this.ctx.createPattern(createNewsprintGrainPattern(), 'repeat');
+
+        this.viewMode = 'lobby'; // 'lobby' | 'play'
+        this.selectedCardIdx = 0;
+        this.levelIdx = 0;
+        this.bestStars = [0, 0, 0, 0];
+
+        this.rows = 2;
+        this.cols = 3;
+        this.grid = [];
+        this.tapes = [];
+        this.history = [];
+        this.movesCount = 0;
+        this.isSolved = false;
+        this.hasFoldedOnce = false;
+
+        this.hoverCrease = null;
+        this.dragState = null;
+        this.activeAnim = null;
+        this.blockedShake = { timer: 0, x: 0, y: 0 };
+        this.particles = [];
+        this.time = 0;
+
+        // Lobby hitboxes
+        this.lobbyCardsBounds = [];
+        this.playStampBounds = null;
+        this.hoverLobbyIdx = -1;
+
+        this.bindEvents();
+        this.resize();
+        this.loadLevel(0, false);
+        this.setView('lobby');
+      }
+
+      resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = Math.floor(this.width * dpr);
+        this.canvas.height = Math.floor(this.height * dpr);
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.computeBoardLayout();
+      }
+
+      computeBoardLayout() {
+        const topMargin = 86;
+        const bottomMargin = 108;
+        const sideMargin = 28;
+        const availW = Math.max(240, this.width - sideMargin * 2);
+        const availH = Math.max(200, this.height - topMargin - bottomMargin);
+
+        const maxTile = 136;
+        const tileW = Math.min(maxTile, Math.floor(availW / Math.max(1, this.cols)));
+        const tileH = Math.min(maxTile, Math.floor(availH / Math.max(1, this.rows)));
+        this.tileSize = Math.max(54, Math.min(tileW, tileH));
+
+        this.boardW = this.cols * this.tileSize;
+        this.boardH = this.rows * this.tileSize;
+        this.boardX = Math.floor((this.width - this.boardW) * 0.5);
+        this.boardY = Math.floor(topMargin + (availH - this.boardH) * 0.5);
+      }
+
+      setView(mode) {
+        this.viewMode = mode;
+        const isPlay = mode === 'play';
+
+        const btnLobby = document.getElementById('btnModeLobby');
+        const btnPlay = document.getElementById('btnModePlay');
+
+        btnLobby.style.backgroundColor = !isPlay ? RISO.ink : 'transparent';
+        btnLobby.style.color = !isPlay ? RISO.paperWhite : RISO.ink;
+
+        btnPlay.style.backgroundColor = isPlay ? RISO.red : 'transparent';
+        btnPlay.style.color = isPlay ? RISO.paperWhite : RISO.ink;
+
+        document.getElementById('gameplayMovesBar').classList.toggle('hidden', !isPlay);
+        document.getElementById('gameplayMovesBar').classList.toggle('flex', isPlay);
+        document.getElementById('gameplaySheetBadge').classList.toggle('hidden', !isPlay);
+        document.getElementById('gameplaySheetBadge').classList.toggle('md:flex', isPlay);
+
+        document.getElementById('gameplayBottomControls').classList.toggle('hidden', !isPlay);
+        document.getElementById('gameplayBottomControls').classList.toggle('flex', isPlay);
+
+        if (!isPlay) {
+          this.hideVictoryModal();
+        } else {
+          this.computeBoardLayout();
+          this.updateGameplayHud();
+        }
+      }
+
+      loadLevel(idx, switchToPlay = true) {
+        this.levelIdx = idx;
+        this.selectedCardIdx = idx;
+        const lvl = LEVELS[idx];
+
+        this.rows = lvl.rows;
+        this.cols = lvl.cols;
+        this.movesCount = 0;
+        this.history = [];
+        this.isSolved = false;
+        this.activeAnim = null;
+        this.hoverCrease = null;
+        this.dragState = null;
+        this.particles = [];
+
+        this.grid = Array.from({ length: this.rows }, () =>
+          Array.from({ length: this.cols }, () => ({ stack: [null] }))
+        );
+
+        lvl.symbols.forEach(s => {
+          this.grid[s.r][s.c].stack = [s.type];
+        });
+
+        this.tapes = lvl.tapes.map(t => ({ ...t }));
+
+        this.computeBoardLayout();
+        this.updateGameplayHud();
+        this.hideVictoryModal();
+
+        if (switchToPlay) {
+          this.setView('play');
+        }
+      }
+
+      retryLevel() {
+        this.sound.playClick(480);
+        this.loadLevel(this.levelIdx, true);
+      }
+
+      nextLevel() {
+        this.sound.playClick(680);
+        const next = (this.levelIdx + 1) % LEVELS.length;
+        this.loadLevel(next, true);
+      }
+
+      cloneState() {
+        return {
+          rows: this.rows,
+          cols: this.cols,
+          movesCount: this.movesCount,
+          tapes: this.tapes.map(t => ({ ...t })),
+          grid: this.grid.map(row => row.map(cell => ({ stack: [...cell.stack] })))
+        };
+      }
+
+      undo() {
+        if (this.history.length === 0 || this.activeAnim || this.isSolved || this.viewMode !== 'play') return;
+        const prev = this.history.pop();
+        this.rows = prev.rows;
+        this.cols = prev.cols;
+        this.movesCount = prev.movesCount;
+        this.tapes = prev.tapes;
+        this.grid = prev.grid;
+        this.hoverCrease = null;
+        this.sound.playClick(420);
+        this.computeBoardLayout();
+        this.updateGameplayHud();
+      }
+
+      getTopSymbol(cell) {
+        for (let i = cell.stack.length - 1; i >= 0; i--) {
+          if (cell.stack[i] !== null) return cell.stack[i];
+        }
+        return null;
+      }
+
+      hasTrappedSymbol(cell) {
+        let count = 0;
+        for (let i = 0; i < cell.stack.length; i++) {
+          if (cell.stack[i] !== null) count++;
+        }
+        return count > 1;
+      }
+
+      countRemainingSymbols() {
+        let total = 0;
+        for (let r = 0; r < this.rows; r++) {
+          for (let c = 0; c < this.cols; c++) {
+            for (const sym of this.grid[r][c].stack) {
+              if (sym !== null) total++;
+            }
+          }
+        }
+        return total;
+      }
+
+      getMaxPlyDepth() {
+        let maxD = 1;
+        for (let r = 0; r < this.rows; r++) {
+          for (let c = 0; c < this.cols; c++) {
+            maxD = Math.max(maxD, this.grid[r][c].stack.length);
+          }
+        }
+        return maxD;
+      }
+
+      updateGameplayHud() {
+        const lvl = LEVELS[this.levelIdx];
+        document.getElementById('hudMovesVal').textContent = this.movesCount;
+        document.getElementById('hudParVal').textContent = lvl.par;
+        document.getElementById('hudSheetNum').textContent = lvl.code;
+        document.getElementById('hudSheetName').textContent = lvl.title;
+        document.getElementById('gameplayHintStrip').textContent = lvl.hint;
+
+        const stars = this.movesCount <= lvl.par ? 3 : this.movesCount === lvl.par + 1 ? 2 : 1;
+        const starContainer = document.getElementById('hudParStars').children;
+        for (let i = 0; i < 3; i++) {
+          starContainer[i].className = i < stars ? 'text-[#E63946]' : 'text-[#141414]/25';
+        }
+
+        document.getElementById('btnUndo').disabled = this.history.length === 0;
+      }
+
+      /**
+       * ========================================================================
+       * ORIGAMI FOLDING LOGIC & ONE-WAY TAPE VALIDATION
+       * ========================================================================
+       */
+      isCreaseBlocked(orientation, index, dir) {
+        const tape = this.tapes.find(t => t.orientation === orientation && t.index === index);
+        if (!tape) return false;
+        return tape.allowDir !== dir;
+      }
+
+      executeFold(orientation, index, dir) {
+        if (this.activeAnim || this.isSolved || this.viewMode !== 'play') return;
+
+        if (this.isCreaseBlocked(orientation, index, dir)) {
+          this.sound.playBlockedThud();
+          const cx = orientation === 'v' ? this.boardX + index * this.tileSize : this.boardX + this.boardW * 0.5;
+          const cy = orientation === 'h' ? this.boardY + index * this.tileSize : this.boardY + this.boardH * 0.5;
+          this.blockedShake = { timer: 0.34, x: cx, y: cy };
+          return;
+        }
+
+        this.history.push(this.cloneState());
+        this.sound.playCardstockFold();
+        this.hasFoldedOnce = true;
+
+        const flapSnapshot = this.captureFlapCells(orientation, index, dir);
+        const result = this.computeFoldedGrid(orientation, index, dir);
+
+        // Pick colored paper stock underside matching the level's Risograph accent
+        const undersideColors = [RISO.blue, RISO.red, RISO.yellow, RISO.blue];
+        const undersideColor = undersideColors[this.levelIdx % undersideColors.length];
+
+        this.activeAnim = {
+          orientation,
+          index,
+          dir,
+          progress: 0,
+          duration: 0.28,
+          flapSnapshot,
+          nextState: result,
+          undersideColor
+        };
+      }
+
+      captureFlapCells(orientation, index, dir) {
+        const cells = [];
+        if (orientation === 'v') {
+          const cStart = dir === 'right' ? 0 : index;
+          const cEnd = dir === 'right' ? index : this.cols;
+          for (let r = 0; r < this.rows; r++) {
+            for (let c = cStart; c < cEnd; c++) {
+              cells.push({
+                r, c,
+                topSym: this.getTopSymbol(this.grid[r][c]),
+                depth: this.grid[r][c].stack.length
+              });
+            }
+          }
+        } else {
+          const rStart = dir === 'down' ? 0 : index;
+          const rEnd = dir === 'down' ? index : this.rows;
+          for (let r = rStart; r < rEnd; r++) {
+            for (let c = 0; c < this.cols; c++) {
+              cells.push({
+                r, c,
+                topSym: this.getTopSymbol(this.grid[r][c]),
+                depth: this.grid[r][c].stack.length
+              });
+            }
+          }
+        }
+        return cells;
+      }
+
+      computeFoldedGrid(orientation, index, dir) {
+        const matchedLocations = [];
+
+        if (orientation === 'v') {
+          const leftSpan = index;
+          const rightSpan = this.cols - index;
+          const newCols = Math.max(leftSpan, rightSpan);
+          const newGrid = Array.from({ length: this.rows }, () =>
+            Array.from({ length: newCols }, () => ({ stack: [] }))
+          );
+
+          for (let r = 0; r < this.rows; r++) {
+            if (dir === 'right') {
+              const shift = Math.max(0, leftSpan - rightSpan);
+              for (let c = index; c < this.cols; c++) {
+                newGrid[r][(c - index) + shift].stack = [...this.grid[r][c].stack];
+              }
+              for (let c = index - 1; c >= 0; c--) {
+                const nc = (index - 1 - c) + shift;
+                const movingStack = [...this.grid[r][c].stack].reverse();
+                const res = this.mergeStacks(newGrid[r][nc].stack, movingStack);
+                newGrid[r][nc].stack = res.stack;
+                if (res.matched) matchedLocations.push({ r, c: nc, color: res.matchedColor });
+              }
+            } else {
+              const shift = Math.max(0, rightSpan - leftSpan);
+              for (let c = 0; c < index; c++) {
+                newGrid[r][c + shift].stack = [...this.grid[r][c].stack];
+              }
+              for (let c = index; c < this.cols; c++) {
+                const nc = (index - 1 - (c - index)) + shift;
+                const movingStack = [...this.grid[r][c].stack].reverse();
+                const res = this.mergeStacks(newGrid[r][nc].stack, movingStack);
+                newGrid[r][nc].stack = res.stack;
+                if (res.matched) matchedLocations.push({ r, c: nc, color: res.matchedColor });
+              }
+            }
+          }
+
+          const shift = dir === 'right' ? Math.max(0, leftSpan - rightSpan) : Math.max(0, rightSpan - leftSpan);
+          const nextTapes = [];
+          this.tapes.forEach(t => {
+            if (t.orientation === 'h') nextTapes.push({ ...t });
+            else if (t.index !== index) {
+              const mappedIdx = dir === 'right'
+                ? Math.abs(t.index - index) + shift
+                : (index - Math.abs(t.index - index)) + shift;
+              if (mappedIdx > 0 && mappedIdx < newCols) nextTapes.push({ ...t, index: mappedIdx });
+            }
+          });
+
+          return { rows: this.rows, cols: newCols, grid: newGrid, tapes: nextTapes, matchedLocations };
+        } else {
+          const topSpan = index;
+          const bottomSpan = this.rows - index;
+          const newRows = Math.max(topSpan, bottomSpan);
+          const newGrid = Array.from({ length: newRows }, () =>
+            Array.from({ length: this.cols }, () => ({ stack: [] }))
+          );
+
+          for (let c = 0; c < this.cols; c++) {
+            if (dir === 'down') {
+              const shift = Math.max(0, topSpan - bottomSpan);
+              for (let r = index; r < this.rows; r++) {
+                newGrid[(r - index) + shift][c].stack = [...this.grid[r][c].stack];
+              }
+              for (let r = index - 1; r >= 0; r--) {
+                const nr = (index - 1 - r) + shift;
+                const movingStack = [...this.grid[r][c].stack].reverse();
+                const res = this.mergeStacks(newGrid[nr][c].stack, movingStack);
+                newGrid[nr][c].stack = res.stack;
+                if (res.matched) matchedLocations.push({ r: nr, c, color: res.matchedColor });
+              }
+            } else {
+              const shift = Math.max(0, bottomSpan - topSpan);
+              for (let r = 0; r < index; r++) {
+                newGrid[r + shift][c].stack = [...this.grid[r][c].stack];
+              }
+              for (let r = index; r < this.rows; r++) {
+                const nr = (index - 1 - (r - index)) + shift;
+                const movingStack = [...this.grid[r][c].stack].reverse();
+                const res = this.mergeStacks(newGrid[nr][c].stack, movingStack);
+                newGrid[nr][c].stack = res.stack;
+                if (res.matched) matchedLocations.push({ r: nr, c, color: res.matchedColor });
+              }
+            }
+          }
+
+          const shift = dir === 'down' ? Math.max(0, topSpan - bottomSpan) : Math.max(0, bottomSpan - topSpan);
+          const nextTapes = [];
+          this.tapes.forEach(t => {
+            if (t.orientation === 'v') nextTapes.push({ ...t });
+            else if (t.index !== index) {
+              const mappedIdx = dir === 'down'
+                ? Math.abs(t.index - index) + shift
+                : (index - Math.abs(t.index - index)) + shift;
+              if (mappedIdx > 0 && mappedIdx < newRows) nextTapes.push({ ...t, index: mappedIdx });
+            }
+          });
+
+          return { rows: newRows, cols: this.cols, grid: newGrid, tapes: nextTapes, matchedLocations };
+        }
+      }
+
+      mergeStacks(baseStack, movingStack) {
+        const bCopy = [...baseStack];
+        const mCopy = [...movingStack];
+
+        let topBaseIdx = -1;
+        for (let i = bCopy.length - 1; i >= 0; i--) {
+          if (bCopy[i] !== null) { topBaseIdx = i; break; }
+        }
+
+        let topMovIdx = -1;
+        for (let i = mCopy.length - 1; i >= 0; i--) {
+          if (mCopy[i] !== null) { topMovIdx = i; break; }
+        }
+
+        if (topBaseIdx !== -1 && topMovIdx !== -1 && bCopy[topBaseIdx] === mCopy[topMovIdx]) {
+          const matchedSym = bCopy[topBaseIdx];
+          bCopy[topBaseIdx] = null;
+          mCopy[topMovIdx] = null;
+          return {
+            stack: [...bCopy, ...mCopy],
+            matched: true,
+            matchedColor: RISO_SYMBOLS[matchedSym]?.color || RISO.red
+          };
+        }
+
+        return { stack: [...bCopy, ...mCopy], matched: false, matchedColor: null };
+      }
+
+      commitAnimatedFold() {
+        const next = this.activeAnim.nextState;
+        this.rows = next.rows;
+        this.cols = next.cols;
+        this.grid = next.grid;
+        this.tapes = next.tapes;
+        this.movesCount++;
+        this.activeAnim = null;
+        this.hoverCrease = null;
+
+        this.computeBoardLayout();
+        this.updateGameplayHud();
+
+        if (next.matchedLocations.length > 0) {
+          next.matchedLocations.forEach((loc, idx) => {
+            this.sound.playMarimbaMatch(idx);
+            const cx = this.boardX + (loc.c + 0.5) * this.tileSize;
+            const cy = this.boardY + (loc.r + 0.5) * this.tileSize;
+            this.spawnInkStampBurst(cx, cy, loc.color);
+          });
+        }
+
+        if (this.countRemainingSymbols() === 0) {
+          this.triggerVictory();
+        }
+      }
+
+      spawnInkStampBurst(cx, cy, color) {
+        const shapes = ['circle', 'square', 'triangle'];
+        for (let i = 0; i < 20; i++) {
+          const ang = (Math.PI * 2 * i) / 20 + Math.random() * 0.25;
+          const spd = 55 + Math.random() * 115;
+          this.particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 8,
+            size: 4 + Math.random() * 4,
+            shape: shapes[i % shapes.length],
+            life: 0.55 + Math.random() * 0.25,
+            maxLife: 0.8,
+            color: i % 4 === 0 ? RISO.ink : color
+          });
+        }
+      }
+
+      triggerVictory() {
+        this.isSolved = true;
+        this.sound.playVictoryFanfare();
+
+        const lvl = LEVELS[this.levelIdx];
+        const stars = this.movesCount <= lvl.par ? 3 : this.movesCount === lvl.par + 1 ? 2 : 1;
+        this.bestStars[this.levelIdx] = Math.max(this.bestStars[this.levelIdx], stars);
+
+        document.getElementById('victoryHeading').textContent = lvl.title;
+        document.getElementById('victorySubcopy').textContent =
+          stars === 3
+            ? `Optimal ${lvl.par}-move Risograph proof achieved!`
+            : `Sheet cleared in ${this.movesCount} moves (Par ${lvl.par}).`;
+        document.getElementById('statMovesUsed').textContent = this.movesCount;
+        document.getElementById('statMovesPar').textContent = lvl.par;
+        document.getElementById('statPlyCount').textContent = `${this.getMaxPlyDepth()} PLY`;
+
+        const starEls = document.getElementById('victoryStars').children;
+        for (let i = 0; i < 3; i++) {
+          starEls[i].className = i < stars ? 'text-[#E63946]' : 'text-[#141414]/20';
+        }
+
+        const nextBtn = document.getElementById('btnNextCard');
+        nextBtn.textContent = this.levelIdx >= LEVELS.length - 1 ? 'FIRST CARD >>>' : 'NEXT CARD >>>';
+
+        setTimeout(() => {
+          const modal = document.getElementById('victoryModal');
+          const card = document.getElementById('victoryCard');
+          modal.classList.remove('opacity-0', 'pointer-events-none');
+          card.classList.remove('scale-95');
+        }, 420);
+      }
+
+      hideVictoryModal() {
+        const modal = document.getElementById('victoryModal');
+        const card = document.getElementById('victoryCard');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        card.classList.add('scale-95');
+      }
+
+      /**
+       * ========================================================================
+       * POINTER / SWIPE / CREASE DETECTION (LOBBY & GAMEPLAY)
+       * ========================================================================
+       */
+      detectCreaseNearPoint(px, py) {
+        if (this.isSolved || this.activeAnim || this.viewMode !== 'play') return null;
+
+        const pad = 24;
+        if (
+          px < this.boardX - pad ||
+          px > this.boardX + this.boardW + pad ||
+          py < this.boardY - pad ||
+          py > this.boardY + this.boardH + pad
+        ) {
+          return null;
+        }
+
+        let best = null;
+        let bestDist = 30;
+
+        for (let c = 1; c < this.cols; c++) {
+          const cx = this.boardX + c * this.tileSize;
+          const dist = Math.abs(px - cx);
+          if (dist < bestDist) {
+            bestDist = dist;
+            const dir = px < cx ? 'right' : 'left';
+            best = { orientation: 'v', index: c, dir, blocked: this.isCreaseBlocked('v', c, dir) };
+          }
+        }
+
+        for (let r = 1; r < this.rows; r++) {
+          const ry = this.boardY + r * this.tileSize;
+          const dist = Math.abs(py - ry);
+          if (dist < bestDist) {
+            bestDist = dist;
+            const dir = py < ry ? 'down' : 'up';
+            best = { orientation: 'h', index: r, dir, blocked: this.isCreaseBlocked('h', r, dir) };
+          }
+        }
+
+        return best;
+      }
+
+      bindEvents() {
+        window.addEventListener('resize', () => this.resize());
+
+        const onPointerMove = (e) => {
+          const px = e.clientX;
+          const py = e.clientY;
+
+          if (this.viewMode === 'lobby') {
+            this.hoverLobbyIdx = -1;
+            if (this.playStampBounds && this.pointInRect(px, py, this.playStampBounds)) {
+              this.hoverLobbyIdx = 99;
+            } else {
+              for (let i = 0; i < this.lobbyCardsBounds.length; i++) {
+                if (this.pointInRect(px, py, this.lobbyCardsBounds[i])) {
+                  this.hoverLobbyIdx = i;
+                  break;
+                }
+              }
+            }
+            this.canvas.style.cursor = this.hoverLobbyIdx !== -1 ? 'pointer' : 'default';
+            return;
+          }
+
+          this.canvas.style.cursor = 'pointer';
+          if (this.isSolved || this.activeAnim) return;
+
+          if (this.dragState) {
+            const dx = px - this.dragState.startX;
+            const dy = py - this.dragState.startY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 14) {
+              if (Math.abs(dx) > Math.abs(dy) && this.cols > 1) {
+                const dir = dx > 0 ? 'right' : 'left';
+                const midX = (this.dragState.startX + px) * 0.5;
+                let nearestC = 1;
+                let minD = Infinity;
+                for (let c = 1; c < this.cols; c++) {
+                  const d = Math.abs(midX - (this.boardX + c * this.tileSize));
+                  if (d < minD) { minD = d; nearestC = c; }
+                }
+                this.hoverCrease = {
+                  orientation: 'v', index: nearestC, dir,
+                  blocked: this.isCreaseBlocked('v', nearestC, dir)
+                };
+              } else if (this.rows > 1) {
+                const dir = dy > 0 ? 'down' : 'up';
+                const midY = (this.dragState.startY + py) * 0.5;
+                let nearestR = 1;
+                let minD = Infinity;
+                for (let r = 1; r < this.rows; r++) {
+                  const d = Math.abs(midY - (this.boardY + r * this.tileSize));
+                  if (d < minD) { minD = d; nearestR = r; }
+                }
+                this.hoverCrease = {
+                  orientation: 'h', index: nearestR, dir,
+                  blocked: this.isCreaseBlocked('h', nearestR, dir)
+                };
+              }
+            }
+          } else {
+            this.hoverCrease = this.detectCreaseNearPoint(px, py);
+          }
+        };
+
+        const onPointerDown = (e) => {
+          this.sound.unlock();
+          const px = e.clientX;
+          const py = e.clientY;
+
+          if (this.viewMode === 'lobby') {
+            // Check PLAY >>> Stamp on active card
+            if (this.playStampBounds && this.pointInRect(px, py, this.playStampBounds)) {
+              this.sound.playCardstockFold();
+              this.loadLevel(this.selectedCardIdx, true);
+              return;
+            }
+            // Check Fanned Archival Index Cards
+            for (let i = 0; i < this.lobbyCardsBounds.length; i++) {
+              if (this.pointInRect(px, py, this.lobbyCardsBounds[i])) {
+                if (this.selectedCardIdx === i) {
+                  // Clicking already-selected card launches it immediately
+                  this.sound.playCardstockFold();
+                  this.loadLevel(i, true);
+                } else {
+                  this.selectedCardIdx = i;
+                  this.sound.playClick(540 + i * 60);
+                }
+                return;
+              }
+            }
+            return;
+          }
+
+          if (this.isSolved || this.activeAnim) return;
+          const crease = this.detectCreaseNearPoint(px, py);
+          this.dragState = {
+            startX: px,
+            startY: py,
+            initialCrease: crease
+          };
+        };
+
+        const onPointerUp = (e) => {
+          if (!this.dragState || this.viewMode !== 'play') return;
+          const dx = e.clientX - this.dragState.startX;
+          const dy = e.clientY - this.dragState.startY;
+          const dragDist = Math.hypot(dx, dy);
+
+          if (dragDist >= 22 && this.hoverCrease) {
+            this.executeFold(this.hoverCrease.orientation, this.hoverCrease.index, this.hoverCrease.dir);
+          } else if (dragDist < 12 && this.dragState.initialCrease) {
+            const c = this.dragState.initialCrease;
+            this.executeFold(c.orientation, c.index, c.dir);
+          }
+
+          this.dragState = null;
+        };
+
+        this.canvas.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'z' || e.key === 'Z') this.undo();
+          else if (e.key === 'r' || e.key === 'R') {
+            if (this.viewMode === 'play') this.retryLevel();
+          } else if (e.key === 'l' || e.key === 'L') {
+            this.setView(this.viewMode === 'lobby' ? 'play' : 'lobby');
+          } else if (e.key === 'm' || e.key === 'M') {
+            toggleAudio();
+          } else if (e.key >= '1' && e.key <= '4') {
+            const idx = parseInt(e.key, 10) - 1;
+            if (this.viewMode === 'lobby') {
+              this.selectedCardIdx = idx;
+              this.sound.playClick(580);
+            } else {
+              this.loadLevel(idx, true);
+            }
+          }
+        });
+      }
+
+      pointInRect(px, py, rect) {
+        return px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
+      }
+
+      /**
+       * ========================================================================
+       * SIMULATION UPDATE & RISOGRAPH RENDER LOOP
+       * ========================================================================
+       */
+      update(dt) {
+        this.time += dt;
+
+        if (this.activeAnim) {
+          this.activeAnim.progress += dt / this.activeAnim.duration;
+          if (this.activeAnim.progress >= 1) {
+            this.commitAnimatedFold();
+          }
+        }
+
+        if (this.blockedShake.timer > 0) {
+          this.blockedShake.timer = Math.max(0, this.blockedShake.timer - dt);
+        }
+
+        this.particles.forEach(p => {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 120 * dt;
+          p.rot += p.vRot * dt;
+          p.life -= dt;
+        });
+        this.particles = this.particles.filter(p => p.life > 0);
+      }
+
+      render() {
+        const ctx = this.ctx;
+        const w = this.width;
+        const h = this.height;
+
+        // 1. Textured Off-White Newsprint Stock Background
+        ctx.fillStyle = RISO.newsprint;
+        ctx.fillRect(0, 0, w, h);
+
+        if (this.newsprintGrain) {
+          ctx.fillStyle = this.newsprintGrain;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        if (this.viewMode === 'lobby') {
+          this.renderBauhausLobbyPoster(ctx, w, h);
+        } else {
+          this.renderBauhausGameplayStage(ctx, w, h);
+        }
+      }
+
+      /**
+       * ========================================================================
+       * 1. LOBBY VIEW — SWISS EXHIBITION POSTER & FANNED ARCHIVAL INDEX CARDS
+       * ========================================================================
+       */
+      renderBauhausLobbyPoster(ctx, w, h) {
+        const cx = w * 0.5;
+        const isMobile = w < 640;
+
+        // 1. Floating Halftone Geometric Cutouts & Red/Blue Grid Motifs (Matching Mockup)
+        this.renderPosterOrnaments(ctx, w, h);
+
+        // 2. Stacked Bold Poster Typography: FOLD / FOLD
+        const titleTopY = Math.max(106, h * 0.21);
+        const fontSize = isMobile ? Math.min(62, w * 0.16) : Math.min(86, w * 0.11);
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.font = `900 ${fontSize}px "Archivo Black", "Space Grotesk", sans-serif`;
+
+        // Top word: FOLD in Charcoal Ink
+        ctx.fillStyle = RISO.ink;
+        ctx.fillText('FOLD', cx, titleTopY);
+
+        // Bottom word: FOLD in Signal Red with slight Risograph ink offset
+        ctx.fillStyle = 'rgba(244, 162, 97, 0.45)';
+        ctx.fillText('FOLD', cx + 2.5, titleTopY + fontSize * 0.86 + 2);
+        ctx.fillStyle = RISO.red;
+        ctx.fillText('FOLD', cx, titleTopY + fontSize * 0.86);
+        ctx.restore();
+
+        // 3. Fanned Stack of Numbered Archival Index Cards (01, 02, 03, 04)
+        const deckTopY = titleTopY + fontSize * 1.15 + 18;
+        const deckAvailH = Math.max(210, h - deckTopY - 24);
+        const cardW = Math.min(280, w * 0.68);
+        const cardH = Math.min(245, deckAvailH * 0.88);
+        const spreadX = isMobile ? Math.min(34, w * 0.085) : Math.min(58, w * 0.075);
+
+        this.lobbyCardsBounds = new Array(LEVELS.length);
+        this.playStampBounds = null;
+
+        // Draw back-to-front so selected card pops cleanly in front
+        const drawOrder = [0, 1, 2, 3].filter(i => i !== this.selectedCardIdx);
+        drawOrder.push(this.selectedCardIdx);
+
+        drawOrder.forEach(idx => {
+          const lvl = LEVELS[idx];
+          const isSelected = idx === this.selectedCardIdx;
+          const isHovered = idx === this.hoverLobbyIdx;
+
+          // Position cards in an overlapping archival fan matching the mockup
+          const relOffset = idx - 1.5;
+          const baseX = cx - cardW * 0.5 + relOffset * spreadX;
+          const baseY = deckTopY + (3 - idx) * 9 - (isSelected ? 14 : 0) - (isHovered && !isSelected ? 6 : 0);
+          const angle = relOffset * 0.045 + (isSelected ? -0.02 : 0);
+
+          // Store axis-aligned hit bounds for reliable mouse/touch tapping
+          this.lobbyCardsBounds[idx] = { x: baseX, y: baseY, w: cardW, h: cardH };
+
+          ctx.save();
+          ctx.translate(baseX + cardW * 0.5, baseY + cardH * 0.5);
+          ctx.rotate(angle);
+          ctx.translate(-cardW * 0.5, -cardH * 0.5);
+
+          // Offset Halftone Shadow behind index card
+          ctx.fillStyle = this.halftoneDark || RISO.ink;
+          this.drawIndexFolderPath(ctx, 8, 8, cardW, cardH, idx);
+          ctx.fill();
+
+          // Colored Archival Folder Card Body
+          ctx.fillStyle = lvl.cardColor;
+          this.drawIndexFolderPath(ctx, 0, 0, cardW, cardH, idx);
+          ctx.fill();
+
+          // Crisp Charcoal Ink Outline
+          ctx.lineWidth = 2.6;
+          ctx.strokeStyle = RISO.ink;
+          ctx.stroke();
+
+          // Card Header Number (01, 02, 03, 04) + Par Tag
+          ctx.fillStyle = lvl.cardText;
+          ctx.textAlign = 'left';
+          ctx.font = '800 22px "Archivo Black", sans-serif';
+          ctx.fillText(lvl.code, 16, 30);
+
+          ctx.textAlign = 'right';
+          ctx.font = '800 11px "JetBrains Mono", monospace';
+          ctx.fillText(`PAR ${lvl.par}`, cardW - 16, 48);
+
+          // White Miniature Symbol Strip (Triangles, Circles, Crosses matching mockup)
+          const stripY = 60;
+          const stripH = 42;
+          ctx.fillStyle = RISO.paperWhite;
+          ctx.fillRect(14, stripY, cardW - 28, stripH);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = RISO.ink;
+          ctx.strokeRect(14, stripY, cardW - 28, stripH);
+
+          // Draw 4 geometric preview icons inside the white strip
+          const previewSyms = lvl.symbols.slice(0, 4);
+          previewSyms.forEach((s, sIdx) => {
+            const sx = 14 + ((sIdx + 0.5) * (cardW - 28)) / previewSyms.length;
+            const sy = stripY + stripH * 0.5;
+            RISO_SYMBOLS[s.type].draw(ctx, sx, sy, 15);
+          });
+
+          // Level Title & Earned Stars
+          ctx.textAlign = 'left';
+          ctx.fillStyle = lvl.cardText;
+          ctx.font = '800 13px "Space Grotesk", sans-serif';
+          ctx.fillText(lvl.title, 16, stripY + stripH + 22);
+
+          const earned = this.bestStars[idx];
+          ctx.textAlign = 'right';
+          ctx.font = '15px sans-serif';
+          for (let s = 0; s < 3; s++) {
+            ctx.globalAlpha = s < earned ? 1 : 0.3;
+            ctx.fillText('★', cardW - 16 - (2 - s) * 16, stripY + stripH + 22);
+          }
+          ctx.globalAlpha = 1;
+
+          // Bold 'PLAY >>>' Stamp on the Active Selected Card (Matches Mockup)
+          if (isSelected) {
+            const btnY = cardH - 54;
+            const btnH = 38;
+            ctx.fillStyle = RISO.paperWhite;
+            ctx.fillRect(14, btnY, cardW - 28, btnH);
+            ctx.lineWidth = 2.4;
+            ctx.strokeStyle = RISO.ink;
+            ctx.strokeRect(14, btnY, cardW - 28, btnH);
+
+            ctx.fillStyle = RISO.ink;
+            ctx.textAlign = 'center';
+            ctx.font = '900 18px "Archivo Black", sans-serif';
+            ctx.fillText('PLAY >>>', cardW * 0.5, btnY + 26);
+
+            // Register screen-space hitbox for PLAY >>> button
+            this.playStampBounds = {
+              x: baseX + 14,
+              y: baseY + btnY,
+              w: cardW - 28,
+              h: btnH
+            };
+          }
+
+          ctx.restore();
+        });
+      }
+
+      drawIndexFolderPath(ctx, x, y, w, h, tabSlot) {
+        const tabW = Math.min(76, w * 0.34);
+        const tabH = 14;
+        const tabOffset = Math.min(w - tabW - 12, (tabSlot % 3) * (tabW * 0.72));
+        const r = 10;
+
+        ctx.beginPath();
+        ctx.moveTo(x + tabOffset, y + tabH);
+        ctx.lineTo(x + tabOffset + 6, y);
+        ctx.lineTo(x + tabOffset + tabW - 6, y);
+        ctx.lineTo(x + tabOffset + tabW, y + tabH);
+        ctx.lineTo(x + w - r, y + tabH);
+        ctx.quadraticCurveTo(x + w, y + tabH, x + w, y + tabH + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + tabH + r);
+        ctx.quadraticCurveTo(x, y + tabH, x + r, y + tabH);
+        ctx.closePath();
+      }
+
+      renderPosterOrnaments(ctx, w, h) {
+        const floatY = Math.sin(this.time * 1.4) * 5;
+
+        // Top-Left Split Red/Blue Halftone Circle
+        ctx.save();
+        ctx.translate(Math.max(46, w * 0.12), Math.max(120, h * 0.22) + floatY);
+        ctx.rotate(-0.35);
+        ctx.fillStyle = RISO.red;
+        ctx.beginPath();
+        ctx.arc(0, -3, 34, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = this.halftoneBlue || RISO.blue;
+        ctx.beginPath();
+        ctx.arc(0, 3, 34, 0, Math.PI);
+        ctx.fill();
+        ctx.restore();
+
+        // Top-Right Red Grid Mesh + Cobalt Semicircle
+        ctx.save();
+        ctx.translate(w - Math.max(54, w * 0.13), Math.max(115, h * 0.19) - floatY);
+        ctx.rotate(0.28);
+        ctx.strokeStyle = RISO.red;
+        ctx.lineWidth = 1.6;
+        for (let i = -24; i <= 24; i += 8) {
+          ctx.beginPath();
+          ctx.moveTo(i, -24);
+          ctx.lineTo(i, 24);
+          ctx.moveTo(-24, i);
+          ctx.lineTo(24, i);
+          ctx.stroke();
+        }
+        ctx.fillStyle = RISO.blue;
+        ctx.beginPath();
+        ctx.arc(16, 18, 26, 0, Math.PI);
+        ctx.fill();
+        ctx.restore();
+
+        // Mid-Left Blue Grid & Red Halftone Circle
+        if (w > 480) {
+          ctx.save();
+          ctx.translate(Math.max(58, w * 0.14), h * 0.52 - floatY * 0.8);
+          ctx.fillStyle = this.halftoneRed || RISO.red;
+          ctx.beginPath();
+          ctx.arc(-10, 0, 32, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = RISO.blue;
+          ctx.lineWidth = 1.6;
+          for (let i = -22; i <= 22; i += 8) {
+            ctx.beginPath();
+            ctx.moveTo(i + 8, -22);
+            ctx.lineTo(i + 8, 22);
+            ctx.moveTo(-14, i);
+            ctx.lineTo(30, i);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      /**
+       * ========================================================================
+       * 2. GAMEPLAY VIEW — RISOGRAPH ORIGAMI GRID, ONE-WAY TAPE & FLAP FOLDS
+       * ========================================================================
+       */
+      renderBauhausGameplayStage(ctx, w, h) {
+        ctx.save();
+
+        // Spring-back shake on blocked one-way tape attempt
+        if (this.blockedShake.timer > 0) {
+          const shakeX = Math.sin(this.blockedShake.timer * 58) * 7 * (this.blockedShake.timer / 0.34);
+          ctx.translate(shakeX, 0);
+        }
+
+        // 1. Subtle Bauhaus Exhibition Framing Marks on Newsprint
+        this.renderSheetRegistrationMarks(ctx);
+
+        // 2. Base Paper Sheet Backing Frame
+        ctx.save();
+        ctx.fillStyle = this.halftoneDark || RISO.ink;
+        ctx.fillRect(this.boardX + 9, this.boardY + 9, this.boardW, this.boardH);
+        ctx.fillStyle = RISO.newsprintDark;
+        ctx.fillRect(this.boardX, this.boardY, this.boardW, this.boardH);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = RISO.ink;
+        ctx.strokeRect(this.boardX, this.boardY, this.boardW, this.boardH);
+        ctx.restore();
+
+        // 3. Individual Paper Tiles with Stacked Multi-Ply Halftone Shadows
+        const ts = this.tileSize;
+        for (let r = 0; r < this.rows; r++) {
+          for (let c = 0; c < this.cols; c++) {
+            if (this.activeAnim && this.isCellInMovingFlap(r, c, this.activeAnim)) {
+              continue;
+            }
+            const cell = this.grid[r][c];
+            const x = this.boardX + c * ts;
+            const y = this.boardY + r * ts;
+            this.drawRisographPaperTile(ctx, x, y, ts, cell, cell.stack.length, false, null);
+          }
+        }
+
+        // 4. Internal Crease Fold Lines
+        ctx.save();
+        ctx.strokeStyle = 'rgba(20, 20, 20, 0.32)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        for (let c = 1; c < this.cols; c++) {
+          const cx = this.boardX + c * ts;
+          ctx.beginPath();
+          ctx.moveTo(cx, this.boardY);
+          ctx.lineTo(cx, this.boardY + this.boardH);
+          ctx.stroke();
+        }
+        for (let r = 1; r < this.rows; r++) {
+          const ry = this.boardY + r * ts;
+          ctx.beginPath();
+          ctx.moveTo(this.boardX, ry);
+          ctx.lineTo(this.boardX + this.boardW, ry);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 5. Hazard-Striped Yellow & Charcoal 'ONE-WAY TAPE' (Matching Mockup)
+        this.renderHazardOneWayTapes(ctx);
+
+        // 6. Interactive Crease Hover / Drag Ghost Preview
+        if (this.hoverCrease && !this.activeAnim && !this.isSolved) {
+          this.renderCreaseGhostPreview(ctx, this.hoverCrease);
+        }
+
+        // 7. 3D-Perspective Folding Flap with Colored Risograph Underside
+        if (this.activeAnim) {
+          this.renderFoldingFlap3D(ctx, this.activeAnim);
+        }
+
+        // 8. Blocked Tape Ink Ripple Warning
+        if (this.blockedShake.timer > 0) {
+          const p = 1 - this.blockedShake.timer / 0.34;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(this.blockedShake.x, this.blockedShake.y, 16 + p * 36, 0, Math.PI * 2);
+          ctx.strokeStyle = RISO.red;
+          ctx.lineWidth = 3 * (1 - p);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.restore();
+
+        // 9. Ink Stamp Burst Particles
+        this.renderInkParticles(ctx);
+
+        // 10. Subtle First-Fold Swipe Guide on Card 01
+        if (this.levelIdx === 0 && !this.hasFoldedOnce && !this.isSolved) {
+          this.renderFirstFoldGuide(ctx);
+        }
+      }
+
+      renderSheetRegistrationMarks(ctx) {
+        const pad = 16;
+        const len = 10;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(20, 20, 20, 0.35)';
+        ctx.lineWidth = 1.5;
+        const corners = [
+          [this.boardX - pad, this.boardY - pad],
+          [this.boardX + this.boardW + pad, this.boardY - pad],
+          [this.boardX - pad, this.boardY + this.boardH + pad],
+          [this.boardX + this.boardW + pad, this.boardY + this.boardH + pad]
+        ];
+        corners.forEach(([cx, cy]) => {
+          ctx.beginPath();
+          ctx.moveTo(cx - len, cy);
+          ctx.lineTo(cx + len, cy);
+          ctx.moveTo(cx, cy - len);
+          ctx.lineTo(cx, cy + len);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      isCellInMovingFlap(r, c, anim) {
+        if (anim.orientation === 'v') {
+          return anim.dir === 'right' ? c < anim.index : c >= anim.index;
+        } else {
+          return anim.dir === 'down' ? r < anim.index : r >= anim.index;
+        }
+      }
+
+      drawRisographPaperTile(ctx, x, y, size, cell, depth, isLifted, undersideColor) {
+        const pad = 4;
+        const tx = x + pad;
+        const ty = y + pad;
+        const tw = size - pad * 2;
+        const th = size - pad * 2;
+
+        ctx.save();
+
+        // 1. Offset Halftone Dot Drop Shadow (Multiplies visually as layers stack)
+        const shadowShift = isLifted ? 11 : Math.min(9, 4 + (depth - 1) * 1.6);
+        ctx.fillStyle = this.halftoneDark || 'rgba(20, 20, 20, 0.35)';
+        ctx.fillRect(tx + shadowShift, ty + shadowShift, tw, th);
+
+        // 2. Stacked Lower Paper Plies (Alternating Cobalt & Red edges)
+        const plies = Math.min(4, depth);
+        for (let p = plies - 1; p >= 1; p--) {
+          ctx.fillStyle = p % 2 === 0 ? RISO.blue : RISO.red;
+          ctx.fillRect(tx + p * 1.5, ty + p * 2.2, tw, th);
+          ctx.strokeStyle = RISO.ink;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(tx + p * 1.5, ty + p * 2.2, tw, th);
+        }
+
+        // 3. Main Cardstock Face (or Colored Backing if flap is mid-flip past 90 deg)
+        ctx.fillStyle = undersideColor || RISO.paperWhite;
+        ctx.fillRect(tx, ty, tw, th);
+
+        // Crisp Black Risograph Border
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = RISO.ink;
+        ctx.strokeRect(tx, ty, tw, th);
+
+        // 4. Draw Geometric Symbol only when front face is visible
+        if (!undersideColor) {
+          const topSym = this.getTopSymbol(cell);
+          if (topSym && RISO_SYMBOLS[topSym]) {
+            RISO_SYMBOLS[topSym].draw(ctx, x + size * 0.5, y + size * 0.5, size * 0.36);
+          }
+
+          // Corner Ink Dog-Ear Pip when a mismatched symbol is trapped underneath
+          if (this.hasTrappedSymbol(cell)) {
+            ctx.beginPath();
+            ctx.moveTo(tx + tw - 16, ty + th);
+            ctx.lineTo(tx + tw, ty + th - 16);
+            ctx.lineTo(tx + tw, ty + th);
+            ctx.closePath();
+            ctx.fillStyle = RISO.red;
+            ctx.fill();
+            ctx.strokeStyle = RISO.ink;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          // Ply depth stamp in bottom-left corner when stacked >= 2 layers
+          if (depth >= 2) {
+            ctx.font = '800 9px "JetBrains Mono", monospace';
+            ctx.fillStyle = RISO.ink;
+            ctx.textAlign = 'left';
+            ctx.fillText(`${depth}P`, tx + 5, ty + th - 5);
+          }
+        }
+
+        ctx.restore();
+      }
+
+      renderHazardOneWayTapes(ctx) {
+        const ts = this.tileSize;
+        this.tapes.forEach(tape => {
+          if (tape.orientation === 'v') {
+            const cx = this.boardX + tape.index * ts;
+            const stripW = 26;
+            const stripH = this.boardH + 22;
+            this.drawHazardTapeStrip(ctx, cx - stripW * 0.5, this.boardY - 11, stripW, stripH, tape.allowDir, true);
+          } else {
+            const cy = this.boardY + tape.index * ts;
+            const stripW = this.boardW + 24;
+            const stripH = 26;
+            this.drawHazardTapeStrip(ctx, this.boardX - 12, cy - stripH * 0.5, stripW, stripH, tape.allowDir, false);
+          }
+        });
+      }
+
+      drawHazardTapeStrip(ctx, x, y, w, h, allowDir, isVertical) {
+        ctx.save();
+
+        // Slight offset drop shadow
+        ctx.fillStyle = 'rgba(20, 20, 20, 0.25)';
+        ctx.fillRect(x + 3, y + 3, w, h);
+
+        // Mustard Yellow Base Tape
+        ctx.fillStyle = RISO.yellow;
+        ctx.fillRect(x, y, w, h);
+
+        // Clip inside tape to draw bold Charcoal Diagonal Chevrons
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+
+        ctx.fillStyle = RISO.ink;
+        const step = 16;
+        if (!isVertical) {
+          const dirSign = allowDir === 'right' ? 1 : -1;
+          for (let sx = x - 24; sx < x + w + 24; sx += step) {
+            ctx.beginPath();
+            ctx.moveTo(sx, y);
+            ctx.lineTo(sx + 8, y);
+            ctx.lineTo(sx + 8 + dirSign * 10, y + h * 0.5);
+            ctx.lineTo(sx + 8, y + h);
+            ctx.lineTo(sx, y + h);
+            ctx.lineTo(sx + dirSign * 10, y + h * 0.5);
+            ctx.closePath();
+            ctx.fill();
+          }
+        } else {
+          const dirSign = allowDir === 'down' ? 1 : -1;
+          for (let sy = y - 24; sy < y + h + 24; sy += step) {
+            ctx.beginPath();
+            ctx.moveTo(x, sy);
+            ctx.lineTo(x, sy + 8);
+            ctx.lineTo(x + w * 0.5, sy + 8 + dirSign * 10);
+            ctx.lineTo(x + w, sy + 8);
+            ctx.lineTo(x + w, sy);
+            ctx.lineTo(x + w * 0.5, sy + dirSign * 10);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // Crisp Black Tape Border
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = RISO.ink;
+        ctx.strokeRect(x, y, w, h);
+
+        // Center 'ONE-WAY' Label Pill on horizontal tape or directional badge on vertical tape
+        const cx = x + w * 0.5;
+        const cy = y + h * 0.5;
+        if (!isVertical) {
+          const labelW = 84;
+          const labelH = 16;
+          ctx.fillStyle = RISO.yellow;
+          ctx.fillRect(cx - labelW * 0.5, cy - labelH * 0.5, labelW, labelH);
+          ctx.strokeStyle = RISO.ink;
+          ctx.lineWidth = 1.6;
+          ctx.strokeRect(cx - labelW * 0.5, cy - labelH * 0.5, labelW, labelH);
+
+          ctx.fillStyle = RISO.ink;
+          ctx.font = '800 9px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('ONE-WAY TAPE', cx, cy + 0.5);
+        } else {
+          ctx.beginPath();
+          ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+          ctx.fillStyle = RISO.paperWhite;
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = RISO.ink;
+          ctx.stroke();
+
+          ctx.fillStyle = RISO.ink;
+          ctx.font = '900 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const arrowChar = allowDir === 'right' ? '→' : '←';
+          ctx.fillText(arrowChar, cx, cy + 0.5);
+        }
+
+        ctx.restore();
+      }
+
+      renderCreaseGhostPreview(ctx, crease) {
+        const ts = this.tileSize;
+        const color = crease.blocked ? RISO.red : RISO.blue;
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([7, 5]);
+
+        if (crease.orientation === 'v') {
+          const cx = this.boardX + crease.index * ts;
+          ctx.beginPath();
+          ctx.moveTo(cx, this.boardY - 8);
+          ctx.lineTo(cx, this.boardY + this.boardH + 8);
+          ctx.stroke();
+
+          const badgeX = cx + (crease.dir === 'right' ? 20 : -20);
+          this.drawCreaseDirectionBadge(ctx, badgeX, this.boardY + this.boardH * 0.5, crease.dir, crease.blocked, color);
+        } else {
+          const cy = this.boardY + crease.index * ts;
+          ctx.beginPath();
+          ctx.moveTo(this.boardX - 8, cy);
+          ctx.lineTo(this.boardX + this.boardW + 8, cy);
+          ctx.stroke();
+
+          const badgeY = cy + (crease.dir === 'down' ? 20 : -20);
+          this.drawCreaseDirectionBadge(ctx, this.boardX + this.boardW * 0.5, badgeY, crease.dir, crease.blocked, color);
+        }
+
+        // Project dashed landing outlines where the folded flap will land
+        if (!crease.blocked) {
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = RISO.blue;
+          ctx.fillStyle = 'rgba(29, 53, 87, 0.10)';
+          ctx.lineWidth = 2;
+
+          if (crease.orientation === 'v') {
+            const cStart = crease.dir === 'right' ? 0 : crease.index;
+            const cEnd = crease.dir === 'right' ? crease.index : this.cols;
+            for (let r = 0; r < this.rows; r++) {
+              for (let c = cStart; c < cEnd; c++) {
+                const mirrorC = crease.dir === 'right'
+                  ? crease.index + (crease.index - 1 - c)
+                  : crease.index - 1 - (c - crease.index);
+                const gx = this.boardX + mirrorC * ts + 5;
+                const gy = this.boardY + r * ts + 5;
+                ctx.fillRect(gx, gy, ts - 10, ts - 10);
+                ctx.strokeRect(gx, gy, ts - 10, ts - 10);
+              }
+            }
+          } else {
+            const rStart = crease.dir === 'down' ? 0 : crease.index;
+            const rEnd = crease.dir === 'down' ? crease.index : this.rows;
+            for (let r = rStart; r < rEnd; r++) {
+              for (let c = 0; c < this.cols; c++) {
+                const mirrorR = crease.dir === 'down'
+                  ? crease.index + (crease.index - 1 - r)
+                  : crease.index - 1 - (r - crease.index);
+                const gx = this.boardX + c * ts + 5;
+                const gy = this.boardY + mirrorR * ts + 5;
+                ctx.fillRect(gx, gy, ts - 10, ts - 10);
+                ctx.strokeRect(gx, gy, ts - 10, ts - 10);
+              }
+            }
+          }
+        }
+
+        ctx.restore();
+      }
+
+      drawCreaseDirectionBadge(ctx, x, y, dir, blocked, color) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = RISO.ink;
+        ctx.stroke();
+
+        ctx.strokeStyle = RISO.paperWhite;
+        ctx.lineWidth = 2.6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (blocked) {
+          ctx.beginPath();
+          ctx.moveTo(x - 4.5, y - 4.5);
+          ctx.lineTo(x + 4.5, y + 4.5);
+          ctx.moveTo(x + 4.5, y - 4.5);
+          ctx.lineTo(x - 4.5, y + 4.5);
+          ctx.stroke();
+        } else {
+          const rotMap = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+          ctx.translate(x, y);
+          ctx.rotate(rotMap[dir] || 0);
+          ctx.beginPath();
+          ctx.moveTo(-5, 0);
+          ctx.lineTo(5, 0);
+          ctx.moveTo(1, -4);
+          ctx.lineTo(5, 0);
+          ctx.lineTo(1, 4);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      renderFoldingFlap3D(ctx, anim) {
+        const ts = this.tileSize;
+        const t = Math.min(1, anim.progress);
+        const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const cosScale = Math.cos(ease * Math.PI);
+        const liftY = Math.sin(ease * Math.PI) * 20;
+        // Once past 90 degrees (cosScale < 0), show the vibrant Cobalt/Red/Yellow colored underside!
+        const showColoredBack = cosScale < 0;
+
+        ctx.save();
+        if (anim.orientation === 'v') {
+          const hingeX = this.boardX + anim.index * ts;
+          ctx.translate(hingeX, 0);
+          ctx.scale(cosScale, 1);
+          ctx.translate(-hingeX, -liftY);
+        } else {
+          const hingeY = this.boardY + anim.index * ts;
+          ctx.translate(0, hingeY);
+          ctx.scale(1, cosScale);
+          ctx.translate(0, -hingeY - liftY);
+        }
+
+        anim.flapSnapshot.forEach(item => {
+          const x = this.boardX + item.c * ts;
+          const y = this.boardY + item.r * ts;
+          const tempCell = { stack: item.topSym ? [item.topSym] : [null] };
+          this.drawRisographPaperTile(
+            ctx, x, y, ts, tempCell, item.depth, true,
+            showColoredBack ? anim.undersideColor : null
+          );
+        });
+
+        ctx.restore();
+      }
+
+      renderInkParticles(ctx) {
+        ctx.save();
+        this.particles.forEach(p => {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+
+          if (p.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (p.shape === 'square') {
+            ctx.fillRect(-p.size, -p.size, p.size * 2, p.size * 2);
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size * 1.2);
+            ctx.lineTo(p.size * 1.1, p.size);
+            ctx.lineTo(-p.size * 1.1, p.size);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+        ctx.restore();
+      }
+
+      renderFirstFoldGuide(ctx) {
+        const ts = this.tileSize;
+        const pulse = (Math.sin(this.time * 3.4) + 1) * 0.5;
+        const startX = this.boardX + ts * 2.5;
+        const endX = this.boardX + ts * 1.5;
+        const y = this.boardY + ts * 0.5;
+        const curX = startX + (endX - startX) * pulse;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.strokeStyle = RISO.red;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(curX, y, 13 + pulse * 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(230, 57, 70, 0.16)';
+        ctx.fill();
+        ctx.strokeStyle = RISO.red;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    /**
+     * ============================================================================
+     * INITIALIZATION & UI EVENT WIRING
+     * ============================================================================
+     */
+    const canvas = document.getElementById('risoCanvas');
+    const game = new BauhausFoldGame(canvas);
+
+    function toggleAudio() {
+      game.sound.muted = !game.sound.muted;
+      document.getElementById('iconSoundOn').classList.toggle('hidden', game.sound.muted);
+      document.getElementById('iconSoundOff').classList.toggle('hidden', !game.sound.muted);
+      if (!game.sound.muted) game.sound.playClick(640);
+    }
+
+    document.getElementById('btnAudioToggle').addEventListener('click', toggleAudio);
+
+    const specsDrawer = document.getElementById('specsDrawer');
+    const specsBackdrop = document.getElementById('specsBackdrop');
+
+    function toggleSpecsDrawer(forceOpen) {
+      const isOpen = !specsDrawer.classList.contains('translate-x-full');
+      const nextOpen = typeof forceOpen === 'boolean' ? forceOpen : !isOpen;
+      game.sound.playClick(560);
+      if (nextOpen) {
+        specsDrawer.classList.remove('translate-x-full');
+        specsBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+      } else {
+        specsDrawer.classList.add('translate-x-full');
+        specsBackdrop.classList.add('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    document.getElementById('btnSpecsToggle').addEventListener('click', () => toggleSpecsDrawer(true));
+
+    let lastTimestamp = 0;
+    function animate(timestamp) {
+      const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000 || 0.016);
+      lastTimestamp = timestamp;
+      game.update(dt);
+      game.render();
+      requestAnimationFrame(animate);
+    }
+
+    window.onload = () => {
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>

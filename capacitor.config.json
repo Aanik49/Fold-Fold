@@ -1,0 +1,13 @@
+{
+  "appId": "com.foldfold.game",
+  "appName": "Fold Fold",
+  "webDir": "dist",
+  "backgroundColor": "#F2EFE9",
+  "android": {
+    "backgroundColor": "#F2EFE9",
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

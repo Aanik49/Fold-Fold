@@ -1,0 +1,84 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Fold Fold APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java 21 (for Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install web dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build Fold Fold web assets
+        run: npm run build
+
+      - name: Install Capacitor Android toolchain
+        run: npm install --no-save --legacy-peer-deps @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+
+      - name: Add Android platform & sync web build
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Apply Fold Fold icon & portrait settings
+        run: node .github/scripts/configure-android.mjs
+
+      - name: Compile Android APK (Gradle)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Prepare downloadable Fold-Fold.apk
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Fold-Fold.apk
+          ls -lh Fold-Fold.apk
+
+      - name: Upload APK as GitHub Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fold-Fold-Android-APK
+          path: Fold-Fold.apk
+          retention-days: 90
+
+      - name: Publish APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest-apk' }}
+          name: Fold Fold Android APK (${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Latest Build' }})
+          body: |
+            ## Fold Fold — Bauhaus Risograph Origami Puzzle
+            Download **`Fold-Fold.apk`** below and open it on your Android device to install (works 100% offline!).
+            *(If prompted by Android, allow installing unknown apps from your browser or file manager.)*
+          files: Fold-Fold.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

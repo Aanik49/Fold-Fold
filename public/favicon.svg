@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Offset halftone ink shadow -->
+  <rect x="18" y="18" width="98" height="98" rx="14" fill="#141414" />
+  <!-- Main newsprint cardstock sheet -->
+  <path d="M12 24C12 17.3726 17.3726 12 24 12H78L110 44V98C110 104.627 104.627 110 98 110H24C17.3726 110 12 104.627 12 98V24Z" fill="#FAF8F5" stroke="#141414" stroke-width="5" stroke-linejoin="round" />
+  <!-- Internal dotted fold crease lines -->
+  <line x1="61" y1="15" x2="61" y2="107" stroke="#141414" stroke-width="2.5" stroke-dasharray="5 5" opacity="0.4" />
+  <line x1="15" y1="61" x2="107" y2="61" stroke="#141414" stroke-width="2.5" stroke-dasharray="5 5" opacity="0.4" />
+  <!-- Cobalt Blue folded corner underside -->
+  <path d="M78 12L110 44H86C81.5817 44 78 40.4183 78 36V12Z" fill="#1D3557" stroke="#141414" stroke-width="5" stroke-linejoin="round" />
+  <!-- Risograph Signal Red Circle (top-left) with mustard misregistration -->
+  <circle cx="38.5" cy="38.5" r="12.5" stroke="#F4A261" stroke-width="6" opacity="0.55" />
+  <circle cx="36.5" cy="36.5" r="12.5" stroke="#E63946" stroke-width="6.5" />
+  <!-- Cobalt Blue Cross (bottom-left) -->
+  <path d="M27 75L46 94M46 75L27 94" stroke="#1D3557" stroke-width="7" stroke-linecap="butt" />
+  <!-- Mustard Yellow Triangle (bottom-right) -->
+  <path d="M84 73L97 96H71L84 73Z" fill="#F4A261" stroke="#141414" stroke-width="3.5" stroke-linejoin="round" />
+</svg>
