@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { BookOpen, Music, Volume2, VolumeX } from 'lucide-react';
+import { BookOpen, Calendar, Music, Volume2, VolumeX } from 'lucide-react';
 import { foldAudio } from '../game/audio';
 import { createRisoPatterns, renderPosterBackdrop, RisoPatterns } from '../game/renderer';
 import { CategoryDef, ProgressMap } from '../game/types';
@@ -12,6 +12,9 @@ interface TitleLobbyProps {
   onSelectCategoryIdx: (idx: number) => void;
   onOpenCategory: (categoryId: string) => void;
   onQuickPlayCategory: (categoryId: string) => void;
+  onOpenDaily: () => void;
+  todayDisplayDate: string;
+  todayDailyStars: number;
   progress: ProgressMap;
   sfxEnabled: boolean;
   musicEnabled: boolean;
@@ -26,6 +29,9 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
   onSelectCategoryIdx,
   onOpenCategory,
   onQuickPlayCategory,
+  onOpenDaily,
+  todayDisplayDate,
+  todayDailyStars,
   progress,
   sfxEnabled,
   musicEnabled,
@@ -115,11 +121,35 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
       />
 
       {/* Perimeter Top Bar */}
-      <header className="relative z-10 px-4 pt-4 sm:px-7 sm:pt-5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="relative z-10 px-3.5 pt-3.5 sm:px-7 sm:pt-5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <GameIcon size={38} className="shrink-0" />
-          <div className="hidden sm:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[#141414] whitespace-nowrap">
-            <span>{totalCleared}/100 CLEARED</span>
+
+          <button
+            onClick={() => {
+              foldAudio.unlock();
+              foldAudio.playClick(620);
+              onOpenDaily();
+            }}
+            title={`Daily Puzzle (${todayDisplayDate})`}
+            className={`riso-btn h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer ${
+              todayDailyStars > 0
+                ? 'bg-[#FAF8F5] text-[#141414]'
+                : 'bg-[#E63946] text-[#FAF8F5]'
+            }`}
+          >
+            <Calendar className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+            <span>DAILY</span>
+            <span className="hidden sm:inline opacity-85">· {todayDisplayDate}</span>
+            {todayDailyStars > 0 && (
+              <span className="text-[#E63946] leading-none">
+                {'★'.repeat(todayDailyStars)}
+              </span>
+            )}
+          </button>
+
+          <div className="hidden md:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[#141414] whitespace-nowrap">
+            <span>{totalCleared}/100</span>
             <span aria-hidden="true">·</span>
             <span className="text-[#E63946]">★ {totalStars}/300</span>
           </div>
@@ -133,10 +163,11 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
               foldAudio.playClick(560);
               onOpenGuide();
             }}
+            aria-label="How to Play"
             className="riso-btn h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
           >
             <BookOpen className="w-4 h-4" strokeWidth={2.4} />
-            <span className="hidden xs:inline sm:inline">Guide</span>
+            <span className="hidden sm:inline">Guide</span>
           </button>
 
           <button

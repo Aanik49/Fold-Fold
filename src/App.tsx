@@ -1,25 +1,38 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DailyHub } from './components/DailyHub';
 import { GameStage } from './components/GameStage';
 import { HowToPlayModal } from './components/HowToPlayModal';
 import { LevelSelect } from './components/LevelSelect';
 import { SplashScreen } from './components/SplashScreen';
 import { TitleLobby } from './components/TitleLobby';
 import { foldAudio } from './game/audio';
+import { getDailyPuzzle, shiftDateKey } from './game/daily';
 import { CATEGORIES, getCategoryById } from './game/levelsData';
 import {
+  getLocalTodayDateKey,
   loadAudioSettings,
+  loadDailyProgress,
   loadProgress,
+  recordDailyCompletion,
   saveAudioSettings,
   saveProgress,
 } from './game/storage';
-import { LevelDef, ProgressMap, ScreenMode } from './game/types';
+import { DailyProgressState, LevelDef, ProgressMap, ScreenMode } from './game/types';
 
 export default function App() {
+  const [todayDateKey] = useState(() => getLocalTodayDateKey());
   const [screen, setScreen] = useState<ScreenMode>('SPLASH');
   const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);
   const [activeCategoryId, setActiveCategoryId] = useState(CATEGORIES[0].id);
   const [activeLevel, setActiveLevel] = useState<LevelDef>(CATEGORIES[0].levels[0]);
+
+  const [playingMode, setPlayingMode] = useState<'campaign' | 'daily'>('campaign');
+  const [activeDailyDateKey, setActiveDailyDateKey] = useState(todayDateKey);
+
   const [progress, setProgress] = useState<ProgressMap>(() => loadProgress());
+  const [dailyProgress, setDailyProgress] = useState<DailyProgressState>(() =>
+    loadDailyProgress(getLocalTodayDateKey())
+  );
   const [guideOpen, setGuideOpen] = useState(false);
 
   const [sfxEnabled, setSfxEnabled] = useState(() => loadAudioSettings().sfx);
@@ -33,11 +46,16 @@ export default function App() {
 
   // Update ambient music scale mood whenever category changes
   useEffect(() => {
+    if (playingMode === 'daily') {
+      const dayNum = parseInt(activeDailyDateKey.slice(-2), 10) || 1;
+      foldAudio.setCategoryMood(dayNum % CATEGORIES.length);
+      return;
+    }
     const idx = CATEGORIES.findIndex((c) => c.id === activeCategoryId);
     if (idx !== -1) {
       foldAudio.setCategoryMood(idx);
     }
-  }, [activeCategoryId]);
+  }, [activeCategoryId, playingMode, activeDailyDateKey]);
 
   const handleToggleSfx = useCallback(() => {
     setSfxEnabled((prev) => {
@@ -68,10 +86,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleToggleSfx]);
 
+  const todayBundle = useMemo(() => getDailyPuzzle(todayDateKey), [todayDateKey]);
+  const activeDailyBundle = useMemo(
+    () => getDailyPuzzle(activeDailyDateKey),
+    [activeDailyDateKey]
+  );
+
   const handleOpenCategory = useCallback((categoryId: string) => {
     const idx = CATEGORIES.findIndex((c) => c.id === categoryId);
     if (idx !== -1) setSelectedCategoryIdx(idx);
     setActiveCategoryId(categoryId);
+    setPlayingMode('campaign');
     setScreen('LEVEL_SELECT');
   }, []);
 
@@ -81,8 +106,8 @@ export default function App() {
       const idx = CATEGORIES.findIndex((c) => c.id === cat.id);
       if (idx !== -1) setSelectedCategoryIdx(idx);
       setActiveCategoryId(cat.id);
+      setPlayingMode('campaign');
 
-      // Jump to the first unsolved sheet in this category (or sheet 01 if all cleared)
       const nextUnsolved =
         cat.levels.find((lvl) => (progress[lvl.id]?.bestStars ?? 0) === 0) ??
         cat.levels[0];
@@ -95,10 +120,17 @@ export default function App() {
   const handleSelectLevel = useCallback((level: LevelDef) => {
     setActiveCategoryId(level.categoryId);
     setActiveLevel(level);
+    setPlayingMode('campaign');
     setScreen('PLAYING');
   }, []);
 
-  const handleLevelCleared = useCallback(
+  const handlePlayDailyDate = useCallback((dateKey: string) => {
+    setActiveDailyDateKey(dateKey);
+    setPlayingMode('daily');
+    setScreen('PLAYING');
+  }, []);
+
+  const handleCampaignLevelCleared = useCallback(
     (levelId: string, movesUsed: number, stars: number) => {
       setProgress((prev) => {
         const existing = prev[levelId];
@@ -118,16 +150,41 @@ export default function App() {
     []
   );
 
+  const handleDailyLevelCleared = useCallback(
+    (_levelId: string, movesUsed: number, stars: number) => {
+      setDailyProgress((prev) =>
+        recordDailyCompletion(
+          prev,
+          activeDailyBundle.dateKey,
+          movesUsed,
+          stars,
+          activeDailyBundle.level.par,
+          todayDateKey
+        )
+      );
+    },
+    [activeDailyBundle.dateKey, activeDailyBundle.level.par, todayDateKey]
+  );
+
   const activeCategory = getCategoryById(activeCategoryId);
   const currentCatIdx = CATEGORIES.findIndex((c) => c.id === activeCategory.id);
   const currentLvlIdx = activeCategory.levels.findIndex(
     (l) => l.id === activeLevel.id
   );
   const isLastInCategory = currentLvlIdx >= activeCategory.levels.length - 1;
-  const hasNextLevel =
+  const hasNextCampaignLevel =
     !isLastInCategory || currentCatIdx < CATEGORIES.length - 1;
 
+  const hasNextDailyDate = activeDailyDateKey < todayDateKey;
+
   const handleNextLevel = useCallback(() => {
+    if (playingMode === 'daily') {
+      if (activeDailyDateKey < todayDateKey) {
+        setActiveDailyDateKey(shiftDateKey(activeDailyDateKey, 1));
+      }
+      return;
+    }
+
     if (!isLastInCategory) {
       setActiveLevel(activeCategory.levels[currentLvlIdx + 1]);
     } else if (currentCatIdx < CATEGORIES.length - 1) {
@@ -136,7 +193,15 @@ export default function App() {
       setActiveCategoryId(nextCat.id);
       setActiveLevel(nextCat.levels[0]);
     }
-  }, [activeCategory, currentCatIdx, currentLvlIdx, isLastInCategory]);
+  }, [
+    playingMode,
+    activeDailyDateKey,
+    todayDateKey,
+    activeCategory,
+    currentCatIdx,
+    currentLvlIdx,
+    isLastInCategory,
+  ]);
 
   return (
     <div className="w-full h-full overflow-hidden bg-[#F2EFE9] text-[#141414]">
@@ -154,6 +219,9 @@ export default function App() {
           }}
           onOpenCategory={handleOpenCategory}
           onQuickPlayCategory={handleQuickPlayCategory}
+          onOpenDaily={() => setScreen('DAILY')}
+          todayDisplayDate={todayBundle.displayDate}
+          todayDailyStars={dailyProgress.entries[todayDateKey]?.bestStars ?? 0}
           progress={progress}
           sfxEnabled={sfxEnabled}
           musicEnabled={musicEnabled}
@@ -183,15 +251,53 @@ export default function App() {
         />
       )}
 
-      {screen === 'PLAYING' && (
+      {screen === 'DAILY' && (
+        <DailyHub
+          todayDateKey={todayDateKey}
+          dailyProgress={dailyProgress}
+          onPlayDailyDate={handlePlayDailyDate}
+          onBackToLobby={() => setScreen('TITLE')}
+          sfxEnabled={sfxEnabled}
+          musicEnabled={musicEnabled}
+          onToggleSfx={handleToggleSfx}
+          onToggleMusic={handleToggleMusic}
+          onOpenGuide={() => setGuideOpen(true)}
+        />
+      )}
+
+      {screen === 'PLAYING' && playingMode === 'campaign' && (
         <GameStage
           category={activeCategory}
           level={activeLevel}
-          hasNextLevel={hasNextLevel}
+          hasNextLevel={hasNextCampaignLevel}
           isLastInCategory={isLastInCategory}
           onBackToSheets={() => setScreen('LEVEL_SELECT')}
           onNextLevel={handleNextLevel}
-          onLevelCleared={handleLevelCleared}
+          onLevelCleared={handleCampaignLevelCleared}
+          sfxEnabled={sfxEnabled}
+          musicEnabled={musicEnabled}
+          onToggleSfx={handleToggleSfx}
+          onToggleMusic={handleToggleMusic}
+          onOpenGuide={() => setGuideOpen(true)}
+        />
+      )}
+
+      {screen === 'PLAYING' && playingMode === 'daily' && (
+        <GameStage
+          category={activeDailyBundle.category}
+          level={activeDailyBundle.level}
+          dailyMeta={{
+            dateKey: activeDailyBundle.dateKey,
+            displayDate: activeDailyBundle.displayDate,
+            dayOfYear: activeDailyBundle.dayOfYear,
+            totalDaysInYear: activeDailyBundle.totalDaysInYear,
+            currentStreak: dailyProgress.currentStreak,
+          }}
+          hasNextLevel={hasNextDailyDate}
+          isLastInCategory={false}
+          onBackToSheets={() => setScreen('DAILY')}
+          onNextLevel={handleNextLevel}
+          onLevelCleared={handleDailyLevelCleared}
           sfxEnabled={sfxEnabled}
           musicEnabled={musicEnabled}
           onToggleSfx={handleToggleSfx}

@@ -42,9 +42,18 @@ import {
   LevelDef,
 } from '../game/types';
 
+export interface DailyStageMeta {
+  dateKey: string;
+  displayDate: string;
+  dayOfYear: number;
+  totalDaysInYear: number;
+  currentStreak: number;
+}
+
 interface GameStageProps {
   category: CategoryDef;
   level: LevelDef;
+  dailyMeta?: DailyStageMeta;
   hasNextLevel: boolean;
   isLastInCategory: boolean;
   onBackToSheets: () => void;
@@ -65,6 +74,7 @@ interface HistoryEntry {
 export const GameStage: React.FC<GameStageProps> = ({
   category,
   level,
+  dailyMeta,
   hasNextLevel,
   isLastInCategory,
   onBackToSheets,
@@ -668,7 +678,7 @@ export const GameStage: React.FC<GameStageProps> = ({
               className="riso-btn h-9 sm:h-10 px-3 sm:px-3.5 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" strokeWidth={2.6} />
-              <span>Sheets</span>
+              <span>{dailyMeta ? 'Daily' : 'Sheets'}</span>
             </button>
 
             {/* Desktop Moves / Par + 3-Star Cluster */}
@@ -711,7 +721,7 @@ export const GameStage: React.FC<GameStageProps> = ({
                 }}
                 className="font-mono-riso text-xs font-extrabold px-2 py-0.5 rounded"
               >
-                {category.code}-{level.code}
+                {dailyMeta ? `DAILY · ${dailyMeta.displayDate}` : `${category.code}-${level.code}`}
               </span>
               <span className="font-bold text-xs uppercase tracking-wide text-[#141414] whitespace-nowrap">
                 {level.title}
@@ -847,7 +857,11 @@ export const GameStage: React.FC<GameStageProps> = ({
           <div className="riso-card rounded-2xl p-6 sm:p-7 max-w-sm w-full animate-riso-pop">
             <div className="flex items-center justify-between mb-3">
               <span className="font-mono-riso text-[11px] font-extrabold uppercase px-2.5 py-1 bg-[#E63946] text-white border-2 border-[#141414] rounded">
-                {isLastInCategory ? 'VOLUME COMPLETE' : 'PRINT CLEARED'}
+                {dailyMeta
+                  ? 'DAILY CLEARED'
+                  : isLastInCategory
+                    ? 'VOLUME COMPLETE'
+                    : 'PRINT CLEARED'}
               </span>
 
               <div className="flex items-center gap-1 text-2xl leading-none">
@@ -868,15 +882,19 @@ export const GameStage: React.FC<GameStageProps> = ({
             </div>
 
             <div className="font-mono-riso text-[11px] font-bold text-[#141414]/65 uppercase">
-              VOL.{category.code} · SHEET {level.code}
+              {dailyMeta
+                ? `EDITION #${String(dailyMeta.dayOfYear).padStart(3, '0')}/${dailyMeta.totalDaysInYear} · ${dailyMeta.displayDate}`
+                : `VOL.${category.code} · SHEET ${level.code}`}
             </div>
             <h2 className="font-poster text-2xl uppercase leading-tight mb-1.5 text-[#141414]">
               {level.title}
             </h2>
             <p className="text-xs font-medium text-[#141414]/80 leading-relaxed mb-5">
-              {victoryInfo.stars === 3
-                ? `Optimal ${level.par}-move Risograph proof achieved!`
-                : `Sheet cleared in ${victoryInfo.moves} moves (Par ${level.par}).`}
+              {dailyMeta
+                ? `Daily proof cleared in ${victoryInfo.moves} moves · Streak: ${dailyMeta.currentStreak} ${dailyMeta.currentStreak === 1 ? 'day' : 'days'}.`
+                : victoryInfo.stars === 3
+                  ? `Optimal ${level.par}-move Risograph proof achieved!`
+                  : `Sheet cleared in ${victoryInfo.moves} moves (Par ${level.par}).`}
             </p>
 
             {/* 3-Column Risograph Stats */}
@@ -916,7 +934,7 @@ export const GameStage: React.FC<GameStageProps> = ({
                 }}
                 className="riso-btn flex-1 py-3 px-2.5 rounded-xl font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap cursor-pointer"
               >
-                Sheets
+                {dailyMeta ? 'Archive' : 'Sheets'}
               </button>
               <button
                 onClick={() => resetBoard(true)}
@@ -932,7 +950,11 @@ export const GameStage: React.FC<GameStageProps> = ({
                   }}
                   className="riso-btn flex-[1.7] py-3 px-3 rounded-xl font-poster text-xs sm:text-sm uppercase tracking-wide bg-[#1D3557] text-[#FAF8F5] whitespace-nowrap cursor-pointer"
                 >
-                  {isLastInCategory ? 'NEXT VOL >>>' : 'NEXT >>>'}
+                  {dailyMeta
+                    ? 'NEXT DAY >>>'
+                    : isLastInCategory
+                      ? 'NEXT VOL >>>'
+                      : 'NEXT >>>'}
                 </button>
               )}
             </div>

@@ -88,7 +88,7 @@ export interface FoldResult {
 
 export type BlockReason = 'tape' | 'pin' | null;
 
-export type ScreenMode = 'SPLASH' | 'TITLE' | 'LEVEL_SELECT' | 'PLAYING';
+export type ScreenMode = 'SPLASH' | 'TITLE' | 'LEVEL_SELECT' | 'DAILY' | 'PLAYING';
 
 export interface LevelProgress {
   bestStars: number; // 0..3
@@ -96,3 +96,18 @@ export interface LevelProgress {
 }
 
 export type ProgressMap = Record<string, LevelProgress>;
+
+export interface DailyEntry {
+  dateKey: string; // YYYY-MM-DD
+  bestStars: number; // 1..3
+  bestMoves: number;
+  par: number;
+  completedAt: string;
+}
+
+export interface DailyProgressState {
+  entries: Record<string, DailyEntry>;
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate: string | null;
+}
