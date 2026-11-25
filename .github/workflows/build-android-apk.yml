@@ -32,6 +32,14 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses & install API 35
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
       - name: Install web dependencies
         run: npm install --legacy-peer-deps
 
@@ -47,15 +55,18 @@ jobs:
             npx cap add android
           fi
           npx cap sync android
+          echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > android/local.properties
 
-      - name: Apply Fold Fold icon & portrait settings
+      - name: Apply Fold Fold icon, Gradle & portrait settings
         run: node .github/scripts/configure-android.mjs
 
       - name: Compile Android APK (Gradle)
         working-directory: android
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --stacktrace --console=plain
 
       - name: Prepare downloadable Fold-Fold.apk
         run: |
