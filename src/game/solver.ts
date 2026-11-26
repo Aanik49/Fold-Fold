@@ -2,6 +2,7 @@ import {
   applyFold,
   countRemainingSymbols,
   getAllLegalFolds,
+  hasAnyCarbonSymbol,
   serializeBoard,
 } from './engine';
 import { BoardState, FoldAction } from './types';
@@ -14,7 +15,7 @@ export interface SolveResult {
 
 /**
  * Exact Breadth-First Search optimal solver.
- * Used both to verify all 100 levels at exact optimal Par and to power the in-game Hint system.
+ * Used both to verify all campaign/daily levels at exact optimal Par and to power the in-game Hint system.
  */
 export function solveBoard(
   initialState: BoardState,
@@ -25,9 +26,11 @@ export function solveBoard(
     return { solvable: true, minMoves: 0, solution: [] };
   }
 
-  // Fast parity check: total symbols must be even since every match cancels exactly 2 symbols.
+  // Fast parity check: only valid when board cannot alter symbol count via tear lines or carbon stamps.
+  const canChangeParity =
+    initialState.perforations.length > 0 || hasAnyCarbonSymbol(initialState);
   const startCount = countRemainingSymbols(initialState);
-  if (startCount % 2 !== 0) {
+  if (!canChangeParity && startCount % 2 !== 0) {
     return { solvable: false, minMoves: -1, solution: [] };
   }
 

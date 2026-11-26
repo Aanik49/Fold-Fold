@@ -4,6 +4,7 @@ import { GameStage } from './components/GameStage';
 import { HowToPlayModal } from './components/HowToPlayModal';
 import { LevelSelect } from './components/LevelSelect';
 import { SplashScreen } from './components/SplashScreen';
+import { ThemeStudioModal } from './components/ThemeStudioModal';
 import { TitleLobby } from './components/TitleLobby';
 import { foldAudio } from './game/audio';
 import { getDailyPuzzle, shiftDateKey } from './game/daily';
@@ -13,10 +14,20 @@ import {
   loadAudioSettings,
   loadDailyProgress,
   loadProgress,
+  loadSeenUnlockedThemes,
+  loadSelectedThemeId,
   recordDailyCompletion,
   saveAudioSettings,
   saveProgress,
+  saveSeenUnlockedThemes,
+  saveSelectedThemeId,
 } from './game/storage';
+import {
+  applyRisoTheme,
+  getThemeById,
+  getUnlockedThemes,
+  isThemeUnlocked,
+} from './game/themes';
 import { DailyProgressState, LevelDef, ProgressMap, ScreenMode } from './game/types';
 
 export default function App() {
@@ -34,9 +45,113 @@ export default function App() {
     loadDailyProgress(getLocalTodayDateKey())
   );
   const [guideOpen, setGuideOpen] = useState(false);
+  const [themesOpen, setThemesOpen] = useState(false);
 
   const [sfxEnabled, setSfxEnabled] = useState(() => loadAudioSettings().sfx);
   const [musicEnabled, setMusicEnabled] = useState(() => loadAudioSettings().music);
+
+  // Total stars earned across Campaign (100 levels) + Daily Editions
+  const campaignStars = useMemo(
+    () =>
+      CATEGORIES.reduce(
+        (sum, cat) =>
+          sum +
+          cat.levels.reduce((s, lvl) => s + (progress[lvl.id]?.bestStars ?? 0), 0),
+        0
+      ),
+    [progress]
+  );
+
+  const dailyStars = useMemo(
+    () =>
+      Object.values(dailyProgress.entries).reduce(
+        (sum, entry) => sum + (entry.bestStars || 0),
+        0
+      ),
+    [dailyProgress]
+  );
+
+  const totalEarnedStars = campaignStars + dailyStars;
+
+  const [activeThemeId, setActiveThemeId] = useState<string>(() => {
+    const saved = loadSelectedThemeId();
+    const theme = getThemeById(saved);
+    const initialStars =
+      CATEGORIES.reduce(
+        (sum, cat) =>
+          sum +
+          cat.levels.reduce(
+            (s, lvl) => s + (loadProgress()[lvl.id]?.bestStars ?? 0),
+            0
+          ),
+        0
+      ) +
+      Object.values(loadDailyProgress(getLocalTodayDateKey()).entries).reduce(
+        (sum, e) => sum + (e.bestStars || 0),
+        0
+      );
+    const resolvedId = isThemeUnlocked(theme, initialStars) ? theme.id : 'bauhaus';
+    applyRisoTheme(resolvedId);
+    return resolvedId;
+  });
+
+  const [seenUnlockedThemes, setSeenUnlockedThemes] = useState<string[]>(() =>
+    loadSeenUnlockedThemes()
+  );
+
+  const activeTheme = useMemo(() => getThemeById(activeThemeId), [activeThemeId]);
+
+  const unlockedThemes = useMemo(
+    () => getUnlockedThemes(totalEarnedStars),
+    [totalEarnedStars]
+  );
+
+  const unseenUnlockedThemes = useMemo(
+    () => unlockedThemes.filter((t) => !seenUnlockedThemes.includes(t.id)),
+    [unlockedThemes, seenUnlockedThemes]
+  );
+
+  const hasNewThemeUnlock = unseenUnlockedThemes.length > 0;
+  const newlyUnlockedTheme =
+    unseenUnlockedThemes.length > 0
+      ? unseenUnlockedThemes[unseenUnlockedThemes.length - 1]
+      : null;
+
+  // Apply active theme CSS variables and module state whenever activeThemeId changes
+  useEffect(() => {
+    applyRisoTheme(activeThemeId);
+  }, [activeThemeId]);
+
+  const markUnlockedThemesSeen = useCallback(() => {
+    const allUnlockedIds = unlockedThemes.map((t) => t.id);
+    setSeenUnlockedThemes((prev) => {
+      const merged = Array.from(new Set([...prev, ...allUnlockedIds]));
+      saveSeenUnlockedThemes(merged);
+      return merged;
+    });
+  }, [unlockedThemes]);
+
+  const handleOpenThemes = useCallback(() => {
+    setThemesOpen(true);
+    markUnlockedThemesSeen();
+  }, [markUnlockedThemesSeen]);
+
+  const handleSelectTheme = useCallback(
+    (themeId: string) => {
+      const theme = getThemeById(themeId);
+      if (!isThemeUnlocked(theme, totalEarnedStars)) return;
+      applyRisoTheme(theme.id);
+      setActiveThemeId(theme.id);
+      saveSelectedThemeId(theme.id);
+      setSeenUnlockedThemes((prev) => {
+        if (prev.includes(theme.id)) return prev;
+        const merged = [...prev, theme.id];
+        saveSeenUnlockedThemes(merged);
+        return merged;
+      });
+    },
+    [totalEarnedStars]
+  );
 
   // Sync audio engine settings on mount
   useEffect(() => {
@@ -204,7 +319,7 @@ export default function App() {
   ]);
 
   return (
-    <div className="w-full h-full overflow-hidden bg-[#F2EFE9] text-[#141414]">
+    <div className="w-full h-full overflow-hidden bg-[var(--newsprint)] text-[var(--charcoal-ink)]">
       {screen === 'SPLASH' && (
         <SplashScreen onComplete={() => setScreen('TITLE')} />
       )}
@@ -223,6 +338,9 @@ export default function App() {
           todayDisplayDate={todayBundle.displayDate}
           todayDailyStars={dailyProgress.entries[todayDateKey]?.bestStars ?? 0}
           progress={progress}
+          activeTheme={activeTheme}
+          hasNewThemeUnlock={hasNewThemeUnlock}
+          onOpenThemes={handleOpenThemes}
           sfxEnabled={sfxEnabled}
           musicEnabled={musicEnabled}
           onToggleSfx={handleToggleSfx}
@@ -243,6 +361,9 @@ export default function App() {
           onSelectLevel={handleSelectLevel}
           onBackToLobby={() => setScreen('TITLE')}
           progress={progress}
+          activeTheme={activeTheme}
+          hasNewThemeUnlock={hasNewThemeUnlock}
+          onOpenThemes={handleOpenThemes}
           sfxEnabled={sfxEnabled}
           musicEnabled={musicEnabled}
           onToggleSfx={handleToggleSfx}
@@ -257,6 +378,9 @@ export default function App() {
           dailyProgress={dailyProgress}
           onPlayDailyDate={handlePlayDailyDate}
           onBackToLobby={() => setScreen('TITLE')}
+          activeTheme={activeTheme}
+          hasNewThemeUnlock={hasNewThemeUnlock}
+          onOpenThemes={handleOpenThemes}
           sfxEnabled={sfxEnabled}
           musicEnabled={musicEnabled}
           onToggleSfx={handleToggleSfx}
@@ -268,7 +392,13 @@ export default function App() {
       {screen === 'PLAYING' && playingMode === 'campaign' && (
         <GameStage
           category={activeCategory}
+          categoryIndex={Math.max(0, currentCatIdx)}
           level={activeLevel}
+          activeTheme={activeTheme}
+          hasNewThemeUnlock={hasNewThemeUnlock}
+          newlyUnlockedTheme={newlyUnlockedTheme}
+          onOpenThemes={handleOpenThemes}
+          onEquipTheme={handleSelectTheme}
           hasNextLevel={hasNextCampaignLevel}
           isLastInCategory={isLastInCategory}
           onBackToSheets={() => setScreen('LEVEL_SELECT')}
@@ -285,13 +415,24 @@ export default function App() {
       {screen === 'PLAYING' && playingMode === 'daily' && (
         <GameStage
           category={activeDailyBundle.category}
+          categoryIndex={activeDailyBundle.dayOfYear % CATEGORIES.length}
           level={activeDailyBundle.level}
+          activeTheme={activeTheme}
+          hasNewThemeUnlock={hasNewThemeUnlock}
+          newlyUnlockedTheme={newlyUnlockedTheme}
+          onOpenThemes={handleOpenThemes}
+          onEquipTheme={handleSelectTheme}
           dailyMeta={{
             dateKey: activeDailyBundle.dateKey,
             displayDate: activeDailyBundle.displayDate,
+            fullDisplayDate: activeDailyBundle.fullDisplayDate,
             dayOfYear: activeDailyBundle.dayOfYear,
             totalDaysInYear: activeDailyBundle.totalDaysInYear,
+            weekdayTheme: activeDailyBundle.weekdayTheme,
+            accentColor: activeDailyBundle.accentColor,
+            cardText: activeDailyBundle.category.cardText,
             currentStreak: dailyProgress.currentStreak,
+            longestStreak: dailyProgress.longestStreak,
           }}
           hasNextLevel={hasNextDailyDate}
           isLastInCategory={false}
@@ -305,6 +446,16 @@ export default function App() {
           onOpenGuide={() => setGuideOpen(true)}
         />
       )}
+
+      <ThemeStudioModal
+        open={themesOpen}
+        activeThemeId={activeThemeId}
+        totalStars={totalEarnedStars}
+        campaignStars={campaignStars}
+        dailyStars={dailyStars}
+        onSelectTheme={handleSelectTheme}
+        onClose={() => setThemesOpen(false)}
+      />
 
       <HowToPlayModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>

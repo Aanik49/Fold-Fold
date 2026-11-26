@@ -15,6 +15,8 @@ const CATEGORY_SCALES: number[][] = [
   [293.66, 329.63, 392.0, 440.0, 493.88, 587.33, 659.25, 783.99],
   // 05 Master Archive: A Minor Pentatonic / Modern (focused, deep)
   [220.0, 261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33],
+  // 06 Pressroom Edition: E Dorian Printshop (crisp, kinetic)
+  [246.94, 293.66, 329.63, 369.99, 440.0, 493.88, 587.33, 659.25],
 ];
 
 const MOTIF_PATTERNS: number[][] = [
@@ -373,6 +375,100 @@ class FoldAudioEngine {
     g.connect(this.ctx.destination);
     osc.start(now);
     osc.stop(now + 0.16);
+  }
+
+  public playPaperTear() {
+    if (!this.sfxEnabled) return;
+    this.unlock();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const duration = 0.24;
+    const len = Math.floor(this.ctx.sampleRate * duration);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const t = i / len;
+      // Stuttered perforation-tooth micro-pulses as paper rips cleanly
+      const teeth = 0.62 + 0.38 * Math.sin(t * Math.PI * 22);
+      const env = Math.sin(t * Math.PI) * teeth;
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buf;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1600, now);
+    filter.frequency.exponentialRampToValueAtTime(3800, now + duration);
+    filter.Q.value = 1.8;
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    noise.start(now);
+  }
+
+  public playCarbonStamp() {
+    if (!this.sfxEnabled) return;
+    this.unlock();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime + 0.03;
+    // Deep rubber ink-stamp thump
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(75, now + 0.12);
+    g.gain.setValueAtTime(0.14, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc.connect(g);
+    g.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+
+    // Crisp double-overtone confirmation tick
+    const ping = this.ctx.createOscillator();
+    const pg = this.ctx.createGain();
+    ping.type = 'triangle';
+    ping.frequency.setValueAtTime(587.33, now + 0.04);
+    ping.frequency.exponentialRampToValueAtTime(783.99, now + 0.13);
+    pg.gain.setValueAtTime(0.001, now + 0.04);
+    pg.gain.linearRampToValueAtTime(0.07, now + 0.055);
+    pg.gain.exponentialRampToValueAtTime(0.0008, now + 0.22);
+    ping.connect(pg);
+    pg.connect(this.ctx.destination);
+    ping.start(now + 0.04);
+    ping.stop(now + 0.24);
+  }
+
+  public playLockUnlock() {
+    if (!this.sfxEnabled) return;
+    this.unlock();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime + 0.05;
+    [659.25, 987.77, 1318.5].forEach((freq, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = i === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.05);
+      g.gain.setValueAtTime(0.001, now + i * 0.05);
+      g.gain.linearRampToValueAtTime(0.085, now + i * 0.05 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0005, now + i * 0.05 + 0.32);
+      osc.connect(g);
+      g.connect(this.ctx.destination);
+      osc.start(now + i * 0.05);
+      osc.stop(now + i * 0.05 + 0.35);
+    });
   }
 
   public playBlockedThud(isPin = false) {

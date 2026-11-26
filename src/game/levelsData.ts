@@ -1,6 +1,7 @@
 import { CategoryDef } from './types';
+import { VOL6_CATEGORY } from './vol6Levels';
 
-// Auto-generated and 100% BFS-verified optimal-par levels (5 categories x 20 levels = 100 levels)
+// Auto-generated and 100% BFS-verified optimal-par levels (6 categories x 20 levels = 120 levels)
 export const CATEGORIES: CategoryDef[] = [
   {
     "id": "c1",
@@ -5422,7 +5423,8 @@ export const CATEGORIES: CategoryDef[] = [
         ]
       }
     ]
-  }
+  },
+  VOL6_CATEGORY
 ];
 
 export function getCategoryById(id: string): CategoryDef {

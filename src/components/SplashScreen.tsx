@@ -49,11 +49,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       }`}
     >
       {/* Swiss Print Registration Marks at all 4 corners */}
-      <div className="pointer-events-none fixed inset-5 sm:inset-8 border border-[#141414]/20">
-        <span className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-[#141414]" />
-        <span className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-[#141414]" />
-        <span className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-[#141414]" />
-        <span className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-[#141414]" />
+      <div className="pointer-events-none fixed inset-5 sm:inset-8 border border-[var(--charcoal-ink)]/20">
+        <span className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-[var(--charcoal-ink)]" />
+        <span className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-[var(--charcoal-ink)]" />
+        <span className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-[var(--charcoal-ink)]" />
+        <span className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-[var(--charcoal-ink)]" />
       </div>
 
       {/* Center Registration Stack */}
@@ -61,10 +61,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         {/* Animated Risograph Color Plates converging onto Game Icon */}
         <div className="relative w-28 h-28 sm:w-32 sm:h-32 mb-6 flex items-center justify-center">
           <div className="absolute inset-0 flex items-center justify-center opacity-35 animate-plate-red">
-            <div className="w-24 h-24 rounded-2xl bg-[#E63946] -translate-x-2 -translate-y-2" />
+            <div className="w-24 h-24 rounded-2xl bg-[var(--signal-red)] -translate-x-2 -translate-y-2" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center opacity-35 animate-plate-blue">
-            <div className="w-24 h-24 rounded-2xl bg-[#1D3557] translate-x-2 translate-y-2" />
+            <div className="w-24 h-24 rounded-2xl bg-[var(--cobalt-blue)] translate-x-2 translate-y-2" />
           </div>
           <div className="relative z-10 animate-riso-pop">
             <GameIcon size={108} />
@@ -73,30 +73,30 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
         {/* Bold Bauhaus Stacked Poster Lockup */}
         <div className="text-center select-none leading-[0.86]">
-          <div className="font-poster text-6xl sm:text-7xl tracking-tight text-[#141414] animate-plate-blue">
+          <div className="font-poster text-6xl sm:text-7xl tracking-tight text-[var(--charcoal-ink)] animate-plate-blue">
             FOLD
           </div>
           <div className="relative font-poster text-6xl sm:text-7xl tracking-tight animate-plate-red">
             <span
               aria-hidden="true"
-              className="absolute inset-0 text-[#F4A261]/55 translate-x-[2.5px] translate-y-[2px]"
+              className="absolute inset-0 text-[var(--mustard-yellow)]/55 translate-x-[2.5px] translate-y-[2px]"
             >
               FOLD
             </span>
-            <span className="relative text-[#E63946]">FOLD</span>
+            <span className="relative text-[var(--signal-red)]">FOLD</span>
           </div>
         </div>
 
-        <p className="mt-5 font-mono-riso text-xs font-bold tracking-[0.16em] text-[#141414]/75 uppercase">
-          Bauhaus Origami Puzzle · 100 Sheets
+        <p className="mt-5 font-mono-riso text-xs font-bold tracking-[0.16em] text-[var(--charcoal-ink)]/75 uppercase">
+          Bauhaus Origami Puzzle · 120 Sheets
         </p>
 
         {/* Crisp Risograph Press Progress Bar */}
-        <div className="mt-7 w-52 h-2.5 bg-[#E5E0D5] border-2 border-[#141414] overflow-hidden">
-          <div className="h-full bg-[#1D3557] animate-splash-bar" />
+        <div className="mt-7 w-52 h-2.5 bg-[var(--newsprint-dark)] border-2 border-[var(--charcoal-ink)] overflow-hidden">
+          <div className="h-full bg-[var(--cobalt-blue)] animate-splash-bar" />
         </div>
 
-        <p className="mt-3 font-mono-riso text-[11px] font-semibold text-[#141414]/55">
+        <p className="mt-3 font-mono-riso text-[11px] font-semibold text-[var(--charcoal-ink)]/55">
           Tap anywhere to begin
         </p>
       </div>

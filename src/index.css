@@ -4,11 +4,18 @@
   --newsprint: #F2EFE9;
   --newsprint-dark: #E5E0D5;
   --paper-white: #FAF8F5;
+  --paper-shaded: #EFECE4;
   --signal-red: #E63946;
   --cobalt-blue: #1D3557;
   --mustard-yellow: #F4A261;
   --riso-teal: #1E6B5C;
   --charcoal-ink: #141414;
+  --on-red: #FAF8F5;
+  --on-blue: #FAF8F5;
+  --on-yellow: #141414;
+  --on-teal: #FAF8F5;
+  --on-ink: #FAF8F5;
+  --grain-dot: rgba(20, 20, 20, 0.08);
 }
 
 * {
@@ -27,6 +34,7 @@ body,
   background-color: var(--newsprint);
   color: var(--charcoal-ink);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: background-color 0.22s ease, color 0.22s ease;
 }
 
 .font-poster {
@@ -42,12 +50,14 @@ body,
 @layer components {
   .riso-card {
     background-color: var(--paper-white);
+    color: var(--charcoal-ink);
     border: 2.5px solid var(--charcoal-ink);
     box-shadow: 5px 5px 0px var(--charcoal-ink);
   }
 
   .riso-card-sm {
     background-color: var(--paper-white);
+    color: var(--charcoal-ink);
     border: 2px solid var(--charcoal-ink);
     box-shadow: 3px 3px 0px var(--charcoal-ink);
   }
@@ -87,7 +97,7 @@ body,
 
 .riso-grain-bg {
   background-color: var(--newsprint);
-  background-image: radial-gradient(rgba(20, 20, 20, 0.08) 1px, transparent 0);
+  background-image: radial-gradient(var(--grain-dot) 1px, transparent 0);
   background-size: 16px 16px;
 }
 

@@ -6,12 +6,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Music,
+  Palette,
+  Share2,
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { DailyShareCardModal } from './DailyShareCardModal';
 import { foldAudio } from '../game/audio';
 import { getDailyPuzzle, parseDateKeyParts } from '../game/daily';
 import { getSymbolColor } from '../game/engine';
+import { DailySharePayload } from '../game/shareCard';
+import { RisoPalette, RisoTheme } from '../game/themes';
 import { DailyProgressState, LevelDef } from '../game/types';
 
 interface DailyHubProps {
@@ -19,6 +24,9 @@ interface DailyHubProps {
   dailyProgress: DailyProgressState;
   onPlayDailyDate: (dateKey: string) => void;
   onBackToLobby: () => void;
+  activeTheme: RisoTheme;
+  hasNewThemeUnlock: boolean;
+  onOpenThemes: () => void;
   sfxEnabled: boolean;
   musicEnabled: boolean;
   onToggleSfx: () => void;
@@ -33,16 +41,19 @@ const MONTH_NAMES = [
 
 const WEEKDAY_HEADERS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-const MiniDailyPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
+const MiniDailyPreview: React.FC<{ level: LevelDef; palette: RisoPalette }> = ({
+  level,
+  palette,
+}) => {
   const symMap = new Map<string, string>();
   for (const s of level.symbols) {
-    symMap.set(`${s.r},${s.c}`, getSymbolColor(s.type));
+    symMap.set(`${s.r},${s.c}`, getSymbolColor(s.type, palette));
   }
   const pinSet = new Set(level.pins.map((p) => `${p.r},${p.c}`));
 
   return (
     <div
-      className="grid gap-1.5 p-2 bg-[#F2EFE9] border-2 border-[#141414] rounded-lg shadow-[3px_3px_0px_#141414]"
+      className="grid gap-1.5 p-2 bg-[var(--newsprint)] border-2 border-[var(--charcoal-ink)] rounded-lg shadow-[3px_3px_0px_var(--charcoal-ink)]"
       style={{
         gridTemplateColumns: `repeat(${level.cols}, minmax(0, 1fr))`,
       }}
@@ -56,7 +67,7 @@ const MiniDailyPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
         return (
           <div
             key={key}
-            className="w-5 h-5 sm:w-6 sm:h-6 rounded-[3px] bg-[#FAF8F5] border border-[#141414]/45 flex items-center justify-center relative"
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded-[3px] bg-[var(--paper-white)] border border-[var(--charcoal-ink)]/45 flex items-center justify-center relative"
           >
             {color && (
               <span
@@ -65,7 +76,7 @@ const MiniDailyPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
               />
             )}
             {isPinned && (
-              <span className="absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full bg-[#F4A261] border border-[#141414]" />
+              <span className="absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full bg-[var(--mustard-yellow)] border border-[var(--charcoal-ink)]" />
             )}
           </div>
         );
@@ -79,6 +90,9 @@ export const DailyHub: React.FC<DailyHubProps> = ({
   dailyProgress,
   onPlayDailyDate,
   onBackToLobby,
+  activeTheme,
+  hasNewThemeUnlock,
+  onOpenThemes,
   sfxEnabled,
   musicEnabled,
   onToggleSfx,
@@ -88,6 +102,7 @@ export const DailyHub: React.FC<DailyHubProps> = ({
   const todayParts = useMemo(() => parseDateKeyParts(todayDateKey), [todayDateKey]);
   const [viewYear, setViewYear] = useState(todayParts.year);
   const [viewMonth, setViewMonth] = useState(todayParts.month); // 1..12
+  const [sharePayload, setSharePayload] = useState<DailySharePayload | null>(null);
 
   const todayBundle = useMemo(() => getDailyPuzzle(todayDateKey), [todayDateKey]);
   const todayEntry = dailyProgress.entries[todayDateKey];
@@ -155,7 +170,7 @@ export const DailyHub: React.FC<DailyHubProps> = ({
   return (
     <div className="w-full h-full flex flex-col riso-grain-bg overflow-hidden">
       {/* Top Bar */}
-      <header className="px-3.5 py-3 sm:px-7 sm:py-4 border-b-[2.5px] border-[#141414] bg-[#FAF8F5] flex items-center justify-between gap-2 shrink-0">
+      <header className="px-3.5 py-3 sm:px-7 sm:py-4 border-b-[2.5px] border-[var(--charcoal-ink)] bg-[var(--paper-white)] flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => {
@@ -168,13 +183,28 @@ export const DailyHub: React.FC<DailyHubProps> = ({
             <span>Lobby</span>
           </button>
 
-          <div className="hidden sm:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[#141414] whitespace-nowrap">
-            <Calendar className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+          <div className="hidden sm:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[var(--charcoal-ink)] whitespace-nowrap">
+            <Calendar className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
             <span>DAILY EDITION ARCHIVE</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pr-0.5">
+          <button
+            onClick={() => {
+              foldAudio.playClick(590);
+              onOpenThemes();
+            }}
+            title={`Paper & Ink Themes (${activeTheme.name})`}
+            aria-label="Paper and Ink Themes"
+            className="riso-btn relative h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Palette className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Inks</span>
+            {hasNewThemeUnlock && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--signal-red)] border-[1.5px] border-[var(--charcoal-ink)]" />
+            )}
+          </button>
           <button
             onClick={() => {
               foldAudio.playClick(560);
@@ -194,7 +224,11 @@ export const DailyHub: React.FC<DailyHubProps> = ({
             }`}
           >
             <Music
-              className={`w-4 h-4 ${musicEnabled ? 'text-[#1D3557]' : 'text-[#E63946]'}`}
+              className={`w-4 h-4 ${
+                musicEnabled
+                  ? 'text-[var(--cobalt-blue)]'
+                  : 'text-[var(--signal-red)]'
+              }`}
               strokeWidth={2.5}
             />
           </button>
@@ -204,9 +238,9 @@ export const DailyHub: React.FC<DailyHubProps> = ({
             className="riso-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
           >
             {sfxEnabled ? (
-              <Volume2 className="w-4 h-4 text-[#141414]" strokeWidth={2.5} />
+              <Volume2 className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.5} />
             ) : (
-              <VolumeX className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+              <VolumeX className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
             )}
           </button>
         </div>
@@ -222,7 +256,7 @@ export const DailyHub: React.FC<DailyHubProps> = ({
                 backgroundColor: todayBundle.accentColor,
                 color: todayBundle.category.cardText,
               }}
-              className="px-5 py-3.5 sm:px-6 border-b-[2.5px] border-[#141414] flex flex-wrap items-center justify-between gap-2"
+              className="px-5 py-3.5 sm:px-6 border-b-[2.5px] border-[var(--charcoal-ink)] flex flex-wrap items-center justify-between gap-2"
             >
               <div className="font-mono-riso text-xs font-extrabold uppercase tracking-wider">
                 TODAY · EDITION #{String(todayBundle.dayOfYear).padStart(3, '0')}/
@@ -233,26 +267,29 @@ export const DailyHub: React.FC<DailyHubProps> = ({
               </div>
             </div>
 
-            <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-[#FAF8F5]">
+            <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-[var(--paper-white)]">
               <div className="flex items-center gap-4 sm:gap-5">
-                <MiniDailyPreview level={todayBundle.level} />
+                <MiniDailyPreview
+                  level={todayBundle.level}
+                  palette={activeTheme.palette}
+                />
 
                 <div>
-                  <h1 className="font-poster text-2xl sm:text-3xl uppercase text-[#141414] leading-tight">
+                  <h1 className="font-poster text-2xl sm:text-3xl uppercase text-[var(--charcoal-ink)] leading-tight">
                     {todayBundle.level.title}
                   </h1>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 font-mono-riso text-xs font-bold text-[#141414]/75">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 font-mono-riso text-xs font-bold text-[var(--charcoal-ink)]/75">
                     <span>
                       {todayBundle.level.rows}×{todayBundle.level.cols} SHEET
                     </span>
                     <span aria-hidden="true">·</span>
-                    <span className="text-[#E63946]">
+                    <span className="text-[var(--signal-red)]">
                       PAR {todayBundle.level.par}
                     </span>
                     {todayEntry && (
                       <>
                         <span aria-hidden="true">·</span>
-                        <span className="text-[#1D3557]">
+                        <span className="text-[var(--cobalt-blue)]">
                           BEST {todayEntry.bestMoves} MOVES
                         </span>
                       </>
@@ -266,63 +303,95 @@ export const DailyHub: React.FC<DailyHubProps> = ({
                         key={i}
                         className={
                           i < (todayEntry?.bestStars ?? 0)
-                            ? 'text-[#E63946]'
-                            : 'text-[#141414]/20'
+                            ? 'text-[var(--signal-red)]'
+                            : 'text-[var(--charcoal-ink)]/20'
                         }
                       >
                         ★
                       </span>
                     ))}
-                    <span className="ml-1.5 font-mono-riso text-[11px] font-bold text-[#141414]/65">
+                    <span className="ml-1.5 font-mono-riso text-[11px] font-bold text-[var(--charcoal-ink)]/65">
                       {todayEntry ? 'CLEARED TODAY' : 'UNSOLVED'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  foldAudio.unlock();
-                  foldAudio.playCardstockFold();
-                  onPlayDailyDate(todayDateKey);
-                }}
-                className="riso-btn px-6 py-3.5 rounded-xl bg-[#1D3557] text-[#FAF8F5] font-poster text-sm sm:text-base uppercase tracking-wide whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                {todayEntry ? 'REPLAY TODAY >>>' : 'PLAY TODAY >>>'}
-              </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+                {todayEntry && (
+                  <button
+                    onClick={() => {
+                      foldAudio.playCardstockFold();
+                      setSharePayload({
+                        dateKey: todayBundle.dateKey,
+                        displayDate: todayBundle.displayDate,
+                        fullDisplayDate: todayBundle.fullDisplayDate,
+                        dayOfYear: todayBundle.dayOfYear,
+                        totalDaysInYear: todayBundle.totalDaysInYear,
+                        title: todayBundle.level.title,
+                        weekdayTheme: todayBundle.weekdayTheme,
+                        accentColor: todayBundle.accentColor,
+                        cardText: todayBundle.category.cardText,
+                        rows: todayBundle.level.rows,
+                        cols: todayBundle.level.cols,
+                        moves: todayEntry.bestMoves,
+                        par: todayBundle.level.par,
+                        stars: todayEntry.bestStars,
+                        currentStreak: dailyProgress.currentStreak,
+                        longestStreak: dailyProgress.longestStreak,
+                      });
+                    }}
+                    className="riso-btn px-4 py-3.5 rounded-xl bg-[var(--signal-red)] text-[var(--on-red)] font-poster text-sm uppercase tracking-wide flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" strokeWidth={2.6} />
+                    <span>SHARE CARD</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    foldAudio.unlock();
+                    foldAudio.playCardstockFold();
+                    onPlayDailyDate(todayDateKey);
+                  }}
+                  className="riso-btn px-6 py-3.5 rounded-xl bg-[var(--cobalt-blue)] text-[var(--on-blue)] font-poster text-sm sm:text-base uppercase tracking-wide whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  {todayEntry ? 'REPLAY TODAY >>>' : 'PLAY TODAY >>>'}
+                </button>
+              </div>
             </div>
 
             {/* Separate Daily Stats Strip */}
-            <div className="px-5 py-3 sm:px-6 bg-[#F2EFE9] border-t-2 border-[#141414] grid grid-cols-4 gap-2 text-center font-mono-riso">
+            <div className="px-5 py-3 sm:px-6 bg-[var(--newsprint)] border-t-2 border-[var(--charcoal-ink)] grid grid-cols-4 gap-2 text-center font-mono-riso">
               <div>
-                <div className="text-[10px] font-bold uppercase text-[#141414]/60">
+                <div className="text-[10px] font-bold uppercase text-[var(--charcoal-ink)]/60">
                   Streak
                 </div>
-                <div className="font-poster text-base sm:text-lg text-[#E63946] tabular-nums">
+                <div className="font-poster text-base sm:text-lg text-[var(--signal-red)] tabular-nums">
                   {dailyProgress.currentStreak}d
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase text-[#141414]/60">
+                <div className="text-[10px] font-bold uppercase text-[var(--charcoal-ink)]/60">
                   Best
                 </div>
-                <div className="font-poster text-base sm:text-lg text-[#1D3557] tabular-nums">
+                <div className="font-poster text-base sm:text-lg text-[var(--cobalt-blue)] tabular-nums">
                   {dailyProgress.longestStreak}d
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase text-[#141414]/60">
+                <div className="text-[10px] font-bold uppercase text-[var(--charcoal-ink)]/60">
                   Cleared
                 </div>
-                <div className="font-poster text-base sm:text-lg text-[#141414] tabular-nums">
+                <div className="font-poster text-base sm:text-lg text-[var(--charcoal-ink)] tabular-nums">
                   {totalDailyCleared}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase text-[#141414]/60">
+                <div className="text-[10px] font-bold uppercase text-[var(--charcoal-ink)]/60">
                   Stars
                 </div>
-                <div className="font-poster text-base sm:text-lg text-[#E63946] tabular-nums">
+                <div className="font-poster text-base sm:text-lg text-[var(--signal-red)] tabular-nums">
                   ★ {totalDailyStars}
                 </div>
               </div>
@@ -333,10 +402,10 @@ export const DailyHub: React.FC<DailyHubProps> = ({
           <section className="riso-card rounded-2xl p-4 sm:p-6">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
-                <div className="font-mono-riso text-[10px] font-extrabold uppercase tracking-wider text-[#141414]/60">
+                <div className="font-mono-riso text-[10px] font-extrabold uppercase tracking-wider text-[var(--charcoal-ink)]/60">
                   {viewYear} PRESS ARCHIVE
                 </div>
-                <h2 className="font-poster text-xl uppercase text-[#141414]">
+                <h2 className="font-poster text-xl uppercase text-[var(--charcoal-ink)]">
                   {MONTH_NAMES[viewMonth - 1]} {viewYear}
                 </h2>
               </div>
@@ -362,7 +431,7 @@ export const DailyHub: React.FC<DailyHubProps> = ({
             </div>
 
             {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2 text-center font-mono-riso text-[10px] font-extrabold text-[#141414]/60">
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2 text-center font-mono-riso text-[10px] font-extrabold text-[var(--charcoal-ink)]/60">
               {WEEKDAY_HEADERS.map((wd) => (
                 <div key={wd}>{wd}</div>
               ))}
@@ -382,7 +451,7 @@ export const DailyHub: React.FC<DailyHubProps> = ({
                   return (
                     <div
                       key={cell.dateKey}
-                      className="h-12 sm:h-14 rounded-lg border border-dashed border-[#141414]/20 bg-[#F2EFE9]/55 flex flex-col items-center justify-center font-mono-riso text-xs font-bold text-[#141414]/30 select-none"
+                      className="h-12 sm:h-14 rounded-lg border border-dashed border-[var(--charcoal-ink)]/20 bg-[var(--newsprint)]/55 flex flex-col items-center justify-center font-mono-riso text-xs font-bold text-[var(--charcoal-ink)]/30 select-none"
                     >
                       <span>{cell.day}</span>
                     </div>
@@ -399,15 +468,17 @@ export const DailyHub: React.FC<DailyHubProps> = ({
                     }}
                     className={`h-12 sm:h-14 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-transform cursor-pointer ${
                       cell.isToday
-                        ? 'border-[#E63946] bg-[#FAF8F5] shadow-[2px_2px_0px_#E63946] -translate-y-0.5'
+                        ? 'border-[var(--signal-red)] bg-[var(--paper-white)] shadow-[2px_2px_0px_var(--signal-red)] -translate-y-0.5'
                         : stars > 0
-                          ? 'border-[#141414] bg-[#F2EFE9] hover:-translate-y-0.5'
-                          : 'border-[#141414]/45 bg-[#FAF8F5] hover:border-[#141414] hover:-translate-y-0.5'
+                          ? 'border-[var(--charcoal-ink)] bg-[var(--newsprint)] hover:-translate-y-0.5'
+                          : 'border-[var(--charcoal-ink)]/45 bg-[var(--paper-white)] hover:border-[var(--charcoal-ink)] hover:-translate-y-0.5'
                     }`}
                   >
                     <span
                       className={`font-mono-riso text-xs sm:text-sm font-extrabold leading-none ${
-                        cell.isToday ? 'text-[#E63946]' : 'text-[#141414]'
+                        cell.isToday
+                          ? 'text-[var(--signal-red)]'
+                          : 'text-[var(--charcoal-ink)]'
                       }`}
                     >
                       {cell.day}
@@ -417,7 +488,9 @@ export const DailyHub: React.FC<DailyHubProps> = ({
                         <span
                           key={s}
                           className={
-                            s < stars ? 'text-[#E63946]' : 'text-[#141414]/15'
+                            s < stars
+                              ? 'text-[var(--signal-red)]'
+                              : 'text-[var(--charcoal-ink)]/15'
                           }
                         >
                           ★
@@ -431,6 +504,11 @@ export const DailyHub: React.FC<DailyHubProps> = ({
           </section>
         </div>
       </main>
+
+      <DailyShareCardModal
+        payload={sharePayload}
+        onClose={() => setSharePayload(null)}
+      />
     </div>
   );
 };

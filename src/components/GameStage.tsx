@@ -2,23 +2,32 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
+  Check,
+  Copy,
   Lightbulb,
   Music,
+  Palette,
   RotateCcw,
+  Share2,
+  Sparkles,
   Undo2,
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { DailyShareCardModal } from './DailyShareCardModal';
+import { copyDailyShareText, DailySharePayload } from '../game/shareCard';
 import { foldAudio } from '../game/audio';
 import {
   applyFold,
   cloneBoard,
   countRemainingSymbols,
   createInitialBoard,
+  getCreaseLock,
   getFoldBlockReason,
+  getLockKeyLabel,
   getMaxPlyDepth,
   getTopSymbol,
-  RISO,
+  isCreasePerforated,
 } from '../game/engine';
 import {
   ActiveFoldAnim,
@@ -32,6 +41,7 @@ import {
   RisoPatterns,
 } from '../game/renderer';
 import { solveBoard } from '../game/solver';
+import { RisoTheme } from '../game/themes';
 import {
   BlockReason,
   BoardState,
@@ -45,14 +55,25 @@ import {
 export interface DailyStageMeta {
   dateKey: string;
   displayDate: string;
+  fullDisplayDate: string;
   dayOfYear: number;
   totalDaysInYear: number;
+  weekdayTheme: string;
+  accentColor: string;
+  cardText: string;
   currentStreak: number;
+  longestStreak: number;
 }
 
 interface GameStageProps {
   category: CategoryDef;
+  categoryIndex: number;
   level: LevelDef;
+  activeTheme: RisoTheme;
+  hasNewThemeUnlock: boolean;
+  newlyUnlockedTheme: RisoTheme | null;
+  onOpenThemes: () => void;
+  onEquipTheme: (themeId: string) => void;
   dailyMeta?: DailyStageMeta;
   hasNextLevel: boolean;
   isLastInCategory: boolean;
@@ -73,7 +94,13 @@ interface HistoryEntry {
 
 export const GameStage: React.FC<GameStageProps> = ({
   category,
+  categoryIndex,
   level,
+  activeTheme,
+  hasNewThemeUnlock,
+  newlyUnlockedTheme,
+  onOpenThemes,
+  onEquipTheme,
   dailyMeta,
   hasNextLevel,
   isLastInCategory,
@@ -87,6 +114,17 @@ export const GameStage: React.FC<GameStageProps> = ({
   onOpenGuide,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const patternsRef = useRef<RisoPatterns | null>(null);
+  const activeThemeRef = useRef<RisoTheme>(activeTheme);
+
+  // Live-update theme & canvas patterns mid-puzzle without resetting board state
+  useEffect(() => {
+    activeThemeRef.current = activeTheme;
+    if (ctxRef.current) {
+      patternsRef.current = createRisoPatterns(ctxRef.current, activeTheme.palette);
+    }
+  }, [activeTheme]);
 
   // React HUD state (only updated on move commit / undo / reset / victory — never per frame!)
   const [movesCount, setMovesCount] = useState(0);
@@ -99,6 +137,8 @@ export const GameStage: React.FC<GameStageProps> = ({
   } | null>(null);
   const [statusMessage, setStatusMessage] = useState(level.hintText);
   const [isDeadEnd, setIsDeadEnd] = useState(false);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [quickCopied, setQuickCopied] = useState(false);
 
   // Isolated mutable simulation refs so 60fps canvas loop never triggers React re-renders
   const simRef = useRef<{
@@ -167,6 +207,8 @@ export const GameStage: React.FC<GameStageProps> = ({
       setCanUndo(false);
       setIsSolved(false);
       setVictoryInfo(null);
+      setShareCardOpen(false);
+      setQuickCopied(false);
       setIsDeadEnd(false);
       setStatusMessage(level.hintText);
     },
@@ -241,7 +283,7 @@ export const GameStage: React.FC<GameStageProps> = ({
         shape: shapes[i % shapes.length],
         life: 0.55 + Math.random() * 0.25,
         maxLife: 0.8,
-        color: i % 4 === 0 ? RISO.ink : color,
+        color: i % 4 === 0 ? activeThemeRef.current.palette.ink : color,
       });
     }
   };
@@ -292,23 +334,34 @@ export const GameStage: React.FC<GameStageProps> = ({
 
       const blockReason = getFoldBlockReason(sim.board, orientation, index, dir);
       if (blockReason) {
-        foldAudio.playBlockedThud(blockReason === 'pin');
+        foldAudio.playBlockedThud(blockReason === 'pin' || blockReason === 'lock');
         const { boardX, boardY, boardW, boardH, tileSize } = sim.layout;
         const cx =
           orientation === 'v' ? boardX + index * tileSize : boardX + boardW * 0.5;
         const cy =
           orientation === 'h' ? boardY + index * tileSize : boardY + boardH * 0.5;
         sim.blockedShake = { timer: 0.34, x: cx, y: cy, reason: blockReason };
-        setStatusMessage(
-          blockReason === 'pin'
-            ? 'BRASS PIN ANCHORS THAT FLAP — FOLD OTHER SHEETS ONTO IT'
-            : 'ONE-WAY HAZARD TAPE BLOCKS THAT FOLD DIRECTION'
-        );
+        if (blockReason === 'lock') {
+          const lock = getCreaseLock(sim.board, orientation, index);
+          const keyLabel = lock ? getLockKeyLabel(lock.keySymbol) : 'KEY SYMBOLS';
+          setStatusMessage(`LOCKED CREASE — CLEAR ALL ${keyLabel} TO UNLOCK`);
+        } else {
+          setStatusMessage(
+            blockReason === 'pin'
+              ? 'BRASS PIN ANCHORS THAT FLAP — FOLD OTHER SHEETS ONTO IT'
+              : 'ONE-WAY HAZARD TAPE BLOCKS THAT FOLD DIRECTION'
+          );
+        }
         return;
       }
 
+      const isTear = isCreasePerforated(sim.board, orientation, index);
       sim.history.push({ board: cloneBoard(sim.board), moves: sim.moves });
-      foldAudio.playCardstockFold();
+      if (isTear) {
+        foldAudio.playPaperTear();
+      } else {
+        foldAudio.playCardstockFold();
+      }
       sim.hasFoldedOnce = true;
       sim.hintFold = null;
       sim.hoverCrease = null;
@@ -316,18 +369,24 @@ export const GameStage: React.FC<GameStageProps> = ({
       const flapSnapshot = captureFlapCells(sim.board, orientation, index, dir);
       const foldResult = applyFold(sim.board, { orientation, index, dir });
 
+      const themeUnderside =
+        activeThemeRef.current.undersidePalette[
+          categoryIndex % activeThemeRef.current.undersidePalette.length
+        ] ?? category.undersideColor;
+
       sim.pendingFoldResult = foldResult;
       sim.activeAnim = {
         orientation,
         index,
         dir,
         progress: 0,
-        duration: 0.26,
+        duration: isTear ? 0.28 : 0.26,
         flapSnapshot,
-        undersideColor: category.undersideColor,
+        undersideColor: themeUnderside,
+        isTear,
       };
     },
-    [category.undersideColor]
+    [category.undersideColor, categoryIndex]
   );
 
   // Keyboard shortcuts during gameplay
@@ -356,7 +415,8 @@ export const GameStage: React.FC<GameStageProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const patterns: RisoPatterns = createRisoPatterns(ctx);
+    ctxRef.current = ctx;
+    patternsRef.current = createRisoPatterns(ctx, activeThemeRef.current.palette);
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -562,6 +622,15 @@ export const GameStage: React.FC<GameStageProps> = ({
         foldAudio.playDuplexFlip();
       }
 
+      if (pending.carbonStampedLocations.length > 0) {
+        foldAudio.playCarbonStamp();
+        pending.carbonStampedLocations.forEach((loc) => {
+          const cx = sim.layout.boardX + (loc.c + 0.5) * sim.layout.tileSize;
+          const cy = sim.layout.boardY + (loc.r + 0.5) * sim.layout.tileSize;
+          spawnInkBurst(cx, cy, loc.color);
+        });
+      }
+
       if (pending.matchedLocations.length > 0) {
         pending.matchedLocations.forEach((loc, idx) => {
           foldAudio.playMarimbaMatch(idx);
@@ -569,6 +638,10 @@ export const GameStage: React.FC<GameStageProps> = ({
           const cy = sim.layout.boardY + (loc.r + 0.5) * sim.layout.tileSize;
           spawnInkBurst(cx, cy, loc.color);
         });
+      }
+
+      if (pending.unlockedLocksCount > 0) {
+        foldAudio.playLockUnlock();
       }
 
       const remaining = countRemainingSymbols(sim.board);
@@ -589,7 +662,15 @@ export const GameStage: React.FC<GameStageProps> = ({
         setStatusMessage('SHEET FULLY FOLDED WITH SYMBOLS LEFT — TAP UNDO OR RETRY');
       } else {
         setIsDeadEnd(false);
-        setStatusMessage(level.hintText);
+        if (pending.unlockedLocksCount > 0) {
+          setStatusMessage('LOCKED CREASE UNLOCKED — PATH OPEN!');
+        } else if (pending.carbonStampedLocations.length > 0) {
+          setStatusMessage('CARBON COPY PRESSED A GHOST LAYER UNDERNEATH!');
+        } else if (pending.tornOff) {
+          setStatusMessage('PERFORATED FLAP TORN OFF AND DISCARDED');
+        } else {
+          setStatusMessage(level.hintText);
+        }
       }
     };
 
@@ -623,7 +704,10 @@ export const GameStage: React.FC<GameStageProps> = ({
 
       renderGameplayCanvas({
         ctx,
-        patterns,
+        patterns:
+          patternsRef.current ??
+          createRisoPatterns(ctx, activeThemeRef.current.palette),
+        palette: activeThemeRef.current.palette,
         width: sim.width,
         height: sim.height,
         board: sim.board,
@@ -645,6 +729,8 @@ export const GameStage: React.FC<GameStageProps> = ({
 
     return () => {
       cancelAnimationFrame(rafId);
+      ctxRef.current = null;
+      patternsRef.current = null;
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
@@ -683,13 +769,13 @@ export const GameStage: React.FC<GameStageProps> = ({
 
             {/* Desktop Moves / Par + 3-Star Cluster */}
             <div className="hidden sm:flex riso-card rounded-xl px-4 py-2 items-center gap-3 shrink-0">
-              <div className="font-poster text-base tracking-tight uppercase flex items-center gap-1.5 border-b-2 border-[#141414] pb-0.5 font-mono-riso">
+              <div className="font-poster text-base tracking-tight uppercase flex items-center gap-1.5 border-b-2 border-[var(--charcoal-ink)] pb-0.5 font-mono-riso">
                 <span className="font-poster">MOVES:</span>
-                <span className="font-poster text-[#E63946] tabular-nums">
+                <span className="font-poster text-[var(--signal-red)] tabular-nums">
                   {movesCount}
                 </span>
                 <span className="font-poster">/</span>
-                <span className="font-poster text-[#E63946] tabular-nums">
+                <span className="font-poster text-[var(--signal-red)] tabular-nums">
                   {level.par}
                 </span>
                 <span className="font-poster">PAR</span>
@@ -703,7 +789,9 @@ export const GameStage: React.FC<GameStageProps> = ({
                   <span
                     key={i}
                     className={
-                      i < currentLiveStars ? 'text-[#E63946]' : 'text-[#141414]/20'
+                      i < currentLiveStars
+                        ? 'text-[var(--signal-red)]'
+                        : 'text-[var(--charcoal-ink)]/20'
                     }
                   >
                     ★
@@ -723,14 +811,32 @@ export const GameStage: React.FC<GameStageProps> = ({
               >
                 {dailyMeta ? `DAILY · ${dailyMeta.displayDate}` : `${category.code}-${level.code}`}
               </span>
-              <span className="font-bold text-xs uppercase tracking-wide text-[#141414] whitespace-nowrap">
+              <span className="font-bold text-xs uppercase tracking-wide text-[var(--charcoal-ink)] whitespace-nowrap">
                 {level.title}
               </span>
             </div>
           </div>
 
-          {/* Top-Right: Guide, Music, SFX (never clipped on narrow screens) */}
+          {/* Top-Right: Inks, Guide, Music, SFX (never clipped on narrow screens) */}
           <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0 pr-0.5">
+            <button
+              onClick={() => {
+                foldAudio.playClick(590);
+                onOpenThemes();
+              }}
+              title={`Paper & Ink Themes (${activeTheme.name})`}
+              aria-label="Paper and Ink Themes"
+              className="riso-btn relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <Palette className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
+              {hasNewThemeUnlock && (
+                <span
+                  aria-label="New theme unlocked"
+                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--signal-red)] border-[1.5px] border-[var(--charcoal-ink)]"
+                />
+              )}
+            </button>
+
             <button
               onClick={() => {
                 foldAudio.playClick(560);
@@ -740,7 +846,7 @@ export const GameStage: React.FC<GameStageProps> = ({
               aria-label="How to Play"
               className="riso-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
             >
-              <BookOpen className="w-4 h-4 text-[#141414]" strokeWidth={2.4} />
+              <BookOpen className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.4} />
             </button>
 
             <button
@@ -752,7 +858,11 @@ export const GameStage: React.FC<GameStageProps> = ({
               }`}
             >
               <Music
-                className={`w-4 h-4 ${musicEnabled ? 'text-[#1D3557]' : 'text-[#E63946]'}`}
+                className={`w-4 h-4 ${
+                  musicEnabled
+                    ? 'text-[var(--cobalt-blue)]'
+                    : 'text-[var(--signal-red)]'
+                }`}
                 strokeWidth={2.5}
               />
             </button>
@@ -764,9 +874,9 @@ export const GameStage: React.FC<GameStageProps> = ({
               className="riso-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
             >
               {sfxEnabled ? (
-                <Volume2 className="w-4 h-4 text-[#141414]" strokeWidth={2.5} />
+                <Volume2 className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.5} />
               ) : (
-                <VolumeX className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+                <VolumeX className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
               )}
             </button>
           </div>
@@ -775,13 +885,13 @@ export const GameStage: React.FC<GameStageProps> = ({
         {/* Mobile Second Row: Compact Centered Moves / Par + Stars */}
         <div className="flex sm:hidden items-center justify-center">
           <div className="pointer-events-auto riso-card-sm rounded-xl px-3.5 py-1.5 flex items-center gap-3">
-            <div className="font-poster text-xs tracking-tight uppercase flex items-center gap-1 border-b-2 border-[#141414] pb-0.5 font-mono-riso">
+            <div className="font-poster text-xs tracking-tight uppercase flex items-center gap-1 border-b-2 border-[var(--charcoal-ink)] pb-0.5 font-mono-riso">
               <span className="font-poster">MOVES:</span>
-              <span className="font-poster text-[#E63946] tabular-nums">
+              <span className="font-poster text-[var(--signal-red)] tabular-nums">
                 {movesCount}
               </span>
               <span className="font-poster">/</span>
-              <span className="font-poster text-[#E63946] tabular-nums">
+              <span className="font-poster text-[var(--signal-red)] tabular-nums">
                 {level.par}
               </span>
               <span className="font-poster">PAR</span>
@@ -795,7 +905,9 @@ export const GameStage: React.FC<GameStageProps> = ({
                 <span
                   key={i}
                   className={
-                    i < currentLiveStars ? 'text-[#E63946]' : 'text-[#141414]/20'
+                    i < currentLiveStars
+                      ? 'text-[var(--signal-red)]'
+                      : 'text-[var(--charcoal-ink)]/20'
                   }
                 >
                   ★
@@ -832,7 +944,7 @@ export const GameStage: React.FC<GameStageProps> = ({
             onClick={handleHint}
             disabled={isSolved}
             title="Show Optimal Next Fold (H)"
-            className="riso-btn px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 font-poster text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap bg-[#FAF8F5] text-[#1E6B5C] cursor-pointer"
+            className="riso-btn px-4 py-2 sm:px-5 sm:py-2.5 rounded-full flex items-center gap-2 font-poster text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap bg-[var(--paper-white)] text-[var(--riso-teal)] cursor-pointer"
           >
             <span>HINT</span>
             <Lightbulb className="w-4 h-4" strokeWidth={2.6} />
@@ -843,8 +955,8 @@ export const GameStage: React.FC<GameStageProps> = ({
         <div
           className={`pointer-events-none px-3.5 py-1 rounded-full font-mono-riso text-[10px] sm:text-[11px] font-semibold tracking-wide text-center shadow-md max-w-full truncate ${
             isDeadEnd
-              ? 'bg-[#E63946] text-[#FAF8F5]'
-              : 'bg-[#141414] text-[#FAF8F5]'
+              ? 'bg-[var(--signal-red)] text-[var(--on-red)]'
+              : 'bg-[var(--charcoal-ink)] text-[var(--on-ink)]'
           }`}
         >
           {statusMessage}
@@ -853,10 +965,10 @@ export const GameStage: React.FC<GameStageProps> = ({
 
       {/* Victory Stamp Celebration Modal */}
       {isSolved && victoryInfo && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center p-4 bg-[#141414]/35">
+        <div className="fixed inset-0 z-30 flex items-center justify-center p-4 bg-black/45">
           <div className="riso-card rounded-2xl p-6 sm:p-7 max-w-sm w-full animate-riso-pop">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-mono-riso text-[11px] font-extrabold uppercase px-2.5 py-1 bg-[#E63946] text-white border-2 border-[#141414] rounded">
+              <span className="font-mono-riso text-[11px] font-extrabold uppercase px-2.5 py-1 bg-[var(--signal-red)] text-[var(--on-red)] border-2 border-[var(--charcoal-ink)] rounded">
                 {dailyMeta
                   ? 'DAILY CLEARED'
                   : isLastInCategory
@@ -871,8 +983,8 @@ export const GameStage: React.FC<GameStageProps> = ({
                     style={{ animationDelay: `${i * 110}ms` }}
                     className={
                       i < victoryInfo.stars
-                        ? 'text-[#E63946] animate-star-stamp inline-block'
-                        : 'text-[#141414]/20 inline-block'
+                        ? 'text-[var(--signal-red)] animate-star-stamp inline-block'
+                        : 'text-[var(--charcoal-ink)]/20 inline-block'
                     }
                   >
                     ★
@@ -881,15 +993,15 @@ export const GameStage: React.FC<GameStageProps> = ({
               </div>
             </div>
 
-            <div className="font-mono-riso text-[11px] font-bold text-[#141414]/65 uppercase">
+            <div className="font-mono-riso text-[11px] font-bold text-[var(--charcoal-ink)]/65 uppercase">
               {dailyMeta
                 ? `EDITION #${String(dailyMeta.dayOfYear).padStart(3, '0')}/${dailyMeta.totalDaysInYear} · ${dailyMeta.displayDate}`
                 : `VOL.${category.code} · SHEET ${level.code}`}
             </div>
-            <h2 className="font-poster text-2xl uppercase leading-tight mb-1.5 text-[#141414]">
+            <h2 className="font-poster text-2xl uppercase leading-tight mb-1.5 text-[var(--charcoal-ink)]">
               {level.title}
             </h2>
-            <p className="text-xs font-medium text-[#141414]/80 leading-relaxed mb-5">
+            <p className="text-xs font-medium text-[var(--charcoal-ink)]/80 leading-relaxed mb-4">
               {dailyMeta
                 ? `Daily proof cleared in ${victoryInfo.moves} moves · Streak: ${dailyMeta.currentStreak} ${dailyMeta.currentStreak === 1 ? 'day' : 'days'}.`
                 : victoryInfo.stars === 3
@@ -898,32 +1010,120 @@ export const GameStage: React.FC<GameStageProps> = ({
             </p>
 
             {/* 3-Column Risograph Stats */}
-            <div className="grid grid-cols-3 gap-2.5 mb-5">
-              <div className="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+            <div className="grid grid-cols-3 gap-2.5 mb-4">
+              <div className="border-2 border-[var(--charcoal-ink)] bg-[var(--newsprint)] rounded-xl p-2.5 text-center">
                 <div className="font-mono-riso text-[10px] font-bold uppercase opacity-65">
                   MOVES
                 </div>
-                <div className="font-poster text-lg text-[#1D3557] tabular-nums">
+                <div className="font-poster text-lg text-[var(--cobalt-blue)] tabular-nums">
                   {victoryInfo.moves}
                 </div>
               </div>
-              <div className="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+              <div className="border-2 border-[var(--charcoal-ink)] bg-[var(--newsprint)] rounded-xl p-2.5 text-center">
                 <div className="font-mono-riso text-[10px] font-bold uppercase opacity-65">
                   PAR
                 </div>
-                <div className="font-poster text-lg text-[#E63946] tabular-nums">
+                <div className="font-poster text-lg text-[var(--signal-red)] tabular-nums">
                   {level.par}
                 </div>
               </div>
-              <div className="border-2 border-[#141414] bg-[#F2EFE9] rounded-xl p-2.5 text-center">
+              <div className="border-2 border-[var(--charcoal-ink)] bg-[var(--newsprint)] rounded-xl p-2.5 text-center">
                 <div className="font-mono-riso text-[10px] font-bold uppercase opacity-65">
                   STOCK
                 </div>
-                <div className="font-poster text-lg text-[#141414] tabular-nums">
+                <div className="font-poster text-lg text-[var(--charcoal-ink)] tabular-nums">
                   {victoryInfo.ply} PLY
                 </div>
               </div>
             </div>
+
+            {/* Celebratory Theme Unlock Banner when crossing a star tier */}
+            {newlyUnlockedTheme && newlyUnlockedTheme.id !== activeTheme.id && (
+              <div className="mb-3.5 p-2.5 rounded-xl border-2 border-[var(--charcoal-ink)] bg-[var(--newsprint)] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-lg border-2 border-[var(--charcoal-ink)] flex items-center justify-center shrink-0 bg-[var(--mustard-yellow)] text-[var(--on-yellow)]">
+                    <Sparkles className="w-4 h-4" strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-mono-riso text-[9px] font-extrabold uppercase tracking-wider text-[var(--signal-red)]">
+                      NEW INK PALETTE UNLOCKED
+                    </div>
+                    <div className="font-poster text-xs uppercase truncate">
+                      {newlyUnlockedTheme.name}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    foldAudio.playCardstockFold();
+                    onEquipTheme(newlyUnlockedTheme.id);
+                  }}
+                  className="riso-btn px-2.5 py-1.5 rounded-lg bg-[var(--riso-teal)] text-[var(--on-teal)] font-mono-riso text-[10px] font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  EQUIP
+                </button>
+              </div>
+            )}
+
+            {/* Instant Daily Risograph Result Card Share Row */}
+            {dailyMeta && (
+              <div className="flex items-center gap-2 mb-2.5">
+                <button
+                  onClick={() => {
+                    foldAudio.playCardstockFold();
+                    setShareCardOpen(true);
+                  }}
+                  className="riso-btn flex-1 py-2.5 px-3 rounded-xl bg-[var(--signal-red)] text-[var(--on-red)] font-poster text-xs sm:text-sm uppercase tracking-wide flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" strokeWidth={2.6} />
+                  <span>SHARE PROOF CARD</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    foldAudio.playClick(620);
+                    const payload: DailySharePayload = {
+                      dateKey: dailyMeta.dateKey,
+                      displayDate: dailyMeta.displayDate,
+                      fullDisplayDate: dailyMeta.fullDisplayDate,
+                      dayOfYear: dailyMeta.dayOfYear,
+                      totalDaysInYear: dailyMeta.totalDaysInYear,
+                      title: level.title,
+                      weekdayTheme: dailyMeta.weekdayTheme,
+                      accentColor: dailyMeta.accentColor,
+                      cardText: dailyMeta.cardText,
+                      rows: level.rows,
+                      cols: level.cols,
+                      moves: victoryInfo.moves,
+                      par: level.par,
+                      stars: victoryInfo.stars,
+                      ply: victoryInfo.ply,
+                      currentStreak: dailyMeta.currentStreak,
+                      longestStreak: dailyMeta.longestStreak,
+                    };
+                    const ok = await copyDailyShareText(payload);
+                    if (ok) {
+                      setQuickCopied(true);
+                      window.setTimeout(() => setQuickCopied(false), 2000);
+                    }
+                  }}
+                  title="Copy Spoiler-Free Result"
+                  aria-label="Copy Spoiler-Free Result"
+                  className="riso-btn py-2.5 px-3 rounded-xl font-mono-riso text-xs font-extrabold uppercase flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+                >
+                  {quickCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-[var(--riso-teal)]" strokeWidth={2.8} />
+                      <span className="text-[var(--riso-teal)]">COPIED</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" strokeWidth={2.5} />
+                      <span>COPY</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Single-line Modal Actions */}
             <div className="flex items-center gap-2">
@@ -948,7 +1148,7 @@ export const GameStage: React.FC<GameStageProps> = ({
                     foldAudio.playCardstockFold();
                     onNextLevel();
                   }}
-                  className="riso-btn flex-[1.7] py-3 px-3 rounded-xl font-poster text-xs sm:text-sm uppercase tracking-wide bg-[#1D3557] text-[#FAF8F5] whitespace-nowrap cursor-pointer"
+                  className="riso-btn flex-[1.7] py-3 px-3 rounded-xl font-poster text-xs sm:text-sm uppercase tracking-wide bg-[var(--cobalt-blue)] text-[var(--on-blue)] whitespace-nowrap cursor-pointer"
                 >
                   {dailyMeta
                     ? 'NEXT DAY >>>'
@@ -961,6 +1161,34 @@ export const GameStage: React.FC<GameStageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Instant Shareable Daily Risograph Proof Card Modal */}
+      <DailyShareCardModal
+        payload={
+          shareCardOpen && dailyMeta && victoryInfo
+            ? {
+                dateKey: dailyMeta.dateKey,
+                displayDate: dailyMeta.displayDate,
+                fullDisplayDate: dailyMeta.fullDisplayDate,
+                dayOfYear: dailyMeta.dayOfYear,
+                totalDaysInYear: dailyMeta.totalDaysInYear,
+                title: level.title,
+                weekdayTheme: dailyMeta.weekdayTheme,
+                accentColor: dailyMeta.accentColor,
+                cardText: dailyMeta.cardText,
+                rows: level.rows,
+                cols: level.cols,
+                moves: victoryInfo.moves,
+                par: level.par,
+                stars: victoryInfo.stars,
+                ply: victoryInfo.ply,
+                currentStreak: dailyMeta.currentStreak,
+                longestStreak: dailyMeta.longestStreak,
+              }
+            : null
+        }
+        onClose={() => setShareCardOpen(false)}
+      />
     </div>
   );
 };

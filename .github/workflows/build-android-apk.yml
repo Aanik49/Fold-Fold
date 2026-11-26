@@ -32,15 +32,19 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ''
-
       - name: Accept Android SDK licenses & install API 35
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=${SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> "$GITHUB_ENV"
+          SDKMANAGER=$(ls -1 "${SDK_ROOT}"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found under ${SDK_ROOT}" >&2
+            exit 1
+          fi
+          echo "Using sdkmanager: ${SDKMANAGER}"
+          yes | "$SDKMANAGER" --sdk_root="${SDK_ROOT}" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --sdk_root="${SDK_ROOT}" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install web dependencies
         run: npm install --legacy-peer-deps

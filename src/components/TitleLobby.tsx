@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { BookOpen, Calendar, Music, Volume2, VolumeX } from 'lucide-react';
+import { BookOpen, Calendar, Music, Palette, Volume2, VolumeX } from 'lucide-react';
 import { foldAudio } from '../game/audio';
 import { createRisoPatterns, renderPosterBackdrop, RisoPatterns } from '../game/renderer';
+import { RisoTheme } from '../game/themes';
 import { CategoryDef, ProgressMap } from '../game/types';
 import { GameIcon, SymbolIconSvg } from './GameIcon';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -16,6 +17,9 @@ interface TitleLobbyProps {
   todayDisplayDate: string;
   todayDailyStars: number;
   progress: ProgressMap;
+  activeTheme: RisoTheme;
+  hasNewThemeUnlock: boolean;
+  onOpenThemes: () => void;
   sfxEnabled: boolean;
   musicEnabled: boolean;
   onToggleSfx: () => void;
@@ -33,6 +37,9 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
   todayDisplayDate,
   todayDailyStars,
   progress,
+  activeTheme,
+  hasNewThemeUnlock,
+  onOpenThemes,
   sfxEnabled,
   musicEnabled,
   onToggleSfx,
@@ -41,7 +48,9 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Total stars across all 100 levels (max 300)
+  // Total stars across all campaign volumes (6 volumes x 20 levels = 120 levels, max 360 stars)
+  const totalLevels = categories.reduce((sum, cat) => sum + cat.levels.length, 0);
+  const maxStars = totalLevels * 3;
   const totalStars = categories.reduce(
     (sum, cat) =>
       sum +
@@ -83,7 +92,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const patterns: RisoPatterns = createRisoPatterns(ctx);
+    const patterns: RisoPatterns = createRisoPatterns(ctx, activeTheme.palette);
     let rafId = 0;
     let time = 0;
     let lastTs = performance.now();
@@ -101,7 +110,14 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
       const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
       lastTs = ts;
       time += dt;
-      renderPosterBackdrop(ctx, patterns, window.innerWidth, window.innerHeight, time);
+      renderPosterBackdrop(
+        ctx,
+        patterns,
+        window.innerWidth,
+        window.innerHeight,
+        time,
+        activeTheme.palette
+      );
       rafId = requestAnimationFrame(frame);
     };
     rafId = requestAnimationFrame(frame);
@@ -110,7 +126,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', resize);
     };
-  }, []);
+  }, [activeTheme]);
 
   return (
     <div className="relative w-full h-full overflow-hidden flex flex-col justify-between">
@@ -123,7 +139,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
       {/* Perimeter Top Bar */}
       <header className="relative z-10 px-3.5 pt-3.5 sm:px-7 sm:pt-5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <GameIcon size={38} className="shrink-0" />
+          <GameIcon size={38} className="shrink-0" palette={activeTheme.palette} />
 
           <button
             onClick={() => {
@@ -134,29 +150,48 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
             title={`Daily Puzzle (${todayDisplayDate})`}
             className={`riso-btn h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer ${
               todayDailyStars > 0
-                ? 'bg-[#FAF8F5] text-[#141414]'
-                : 'bg-[#E63946] text-[#FAF8F5]'
+                ? 'bg-[var(--paper-white)] text-[var(--charcoal-ink)]'
+                : 'bg-[var(--signal-red)] text-[var(--on-red)]'
             }`}
           >
             <Calendar className="w-4 h-4 shrink-0" strokeWidth={2.5} />
             <span>DAILY</span>
             <span className="hidden sm:inline opacity-85">· {todayDisplayDate}</span>
             {todayDailyStars > 0 && (
-              <span className="text-[#E63946] leading-none">
+              <span className="text-[var(--signal-red)] leading-none">
                 {'★'.repeat(todayDailyStars)}
               </span>
             )}
           </button>
 
-          <div className="hidden md:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[#141414] whitespace-nowrap">
-            <span>{totalCleared}/100</span>
+          <div className="hidden md:flex items-center gap-2 font-mono-riso text-xs font-extrabold text-[var(--charcoal-ink)] whitespace-nowrap">
+            <span>{totalCleared}/{totalLevels}</span>
             <span aria-hidden="true">·</span>
-            <span className="text-[#E63946]">★ {totalStars}/300</span>
+            <span className="text-[var(--signal-red)]">★ {totalStars}/{maxStars}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pr-0.5">
           <PWAInstallButton />
+
+          <button
+            onClick={() => {
+              foldAudio.playClick(590);
+              onOpenThemes();
+            }}
+            title={`Paper & Ink Themes (${activeTheme.name})`}
+            aria-label="Paper and Ink Themes"
+            className="riso-btn relative h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Palette className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Inks</span>
+            {hasNewThemeUnlock && (
+              <span
+                aria-label="New theme unlocked"
+                className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--signal-red)] border-[1.5px] border-[var(--charcoal-ink)]"
+              />
+            )}
+          </button>
 
           <button
             onClick={() => {
@@ -179,7 +214,11 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
             }`}
           >
             <Music
-              className={`w-4 h-4 ${musicEnabled ? 'text-[#1D3557]' : 'text-[#E63946]'}`}
+              className={`w-4 h-4 ${
+                musicEnabled
+                  ? 'text-[var(--cobalt-blue)]'
+                  : 'text-[var(--signal-red)]'
+              }`}
               strokeWidth={2.5}
             />
           </button>
@@ -191,9 +230,9 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
             className="riso-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
           >
             {sfxEnabled ? (
-              <Volume2 className="w-4 h-4 text-[#141414]" strokeWidth={2.5} />
+              <Volume2 className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.5} />
             ) : (
-              <VolumeX className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+              <VolumeX className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
             )}
           </button>
         </div>
@@ -203,24 +242,24 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pb-3 min-h-0">
         {/* Stacked Bold Poster Typography: FOLD / FOLD */}
         <div className="text-center select-none leading-[0.84] mb-4 sm:mb-6">
-          <h1 className="font-poster text-[3.5rem] sm:text-[5rem] md:text-[5.6rem] tracking-tight text-[#141414]">
+          <h1 className="font-poster text-[3.5rem] sm:text-[5rem] md:text-[5.6rem] tracking-tight text-[var(--charcoal-ink)]">
             FOLD
           </h1>
           <div className="relative font-poster text-[3.5rem] sm:text-[5rem] md:text-[5.6rem] tracking-tight">
             <span
               aria-hidden="true"
-              className="absolute inset-0 text-[#F4A261]/55 translate-x-[3px] translate-y-[2.5px]"
+              className="absolute inset-0 text-[var(--mustard-yellow)]/55 translate-x-[3px] translate-y-[2.5px]"
             >
               FOLD
             </span>
-            <span className="relative text-[#E63946]">FOLD</span>
+            <span className="relative text-[var(--signal-red)]">FOLD</span>
           </div>
-          <p className="mt-2 font-mono-riso text-[11px] sm:text-xs font-bold tracking-wider text-[#141414]/75">
-            5 ARCHIVAL VOLUMES · 20 GEOMETRIC SHEETS EACH
+          <p className="mt-2 font-mono-riso text-[11px] sm:text-xs font-bold tracking-wider text-[var(--charcoal-ink)]/75">
+            {categories.length} ARCHIVAL VOLUMES · 20 GEOMETRIC SHEETS EACH
           </p>
         </div>
 
-        {/* Fanned Stack of 5 Archival Index Folder Cards */}
+        {/* Fanned Stack of Archival Index Folder Cards */}
         <div className="relative w-full max-w-4xl flex items-center justify-center h-[290px] sm:h-[315px]">
           {categories.map((cat, idx) => {
             const isSelected = idx === selectedCategoryIdx;
@@ -233,12 +272,12 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
               (l) => (progress[l.id]?.bestStars ?? 0) > 0
             ).length;
 
-            // Fan offset geometry
-            const xOffset = rel * 118;
-            const yOffset = Math.abs(rel) * 14 - (isSelected ? 10 : 0);
-            const rot = rel * 3.8;
+            // Fan offset geometry tuned for 6 archival volumes
+            const xOffset = rel * 100;
+            const yOffset = Math.abs(rel) * 13 - (isSelected ? 10 : 0);
+            const rot = rel * 3.3;
             const zIndex = isSelected ? 30 : 20 - Math.abs(rel) * 3;
-            const scale = isSelected ? 1 : Math.max(0.86, 1 - Math.abs(rel) * 0.055);
+            const scale = isSelected ? 1 : Math.max(0.84, 1 - Math.abs(rel) * 0.05);
 
             return (
               <div
@@ -280,7 +319,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                     color: cat.cardText,
                     marginLeft: `${(idx % 3) * 56}px`,
                   }}
-                  className="w-24 h-6 rounded-t-lg border-t-[2.5px] border-x-[2.5px] border-[#141414] px-2.5 flex items-center justify-between font-mono-riso text-[11px] font-extrabold relative top-[2px]"
+                  className="w-24 h-6 rounded-t-lg border-t-[2.5px] border-x-[2.5px] border-[var(--charcoal-ink)] px-2.5 flex items-center justify-between font-mono-riso text-[11px] font-extrabold relative top-[2px]"
                 >
                   <span>VOL.{cat.code}</span>
                   <span>20</span>
@@ -292,10 +331,10 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                     backgroundColor: cat.cardColor,
                     color: cat.cardText,
                     boxShadow: isSelected
-                      ? '8px 8px 0px #141414'
-                      : '5px 5px 0px rgba(20,20,20,0.65)',
+                      ? '8px 8px 0px var(--charcoal-ink)'
+                      : '5px 5px 0px rgba(0,0,0,0.45)',
                   }}
-                  className="rounded-b-xl rounded-tr-xl border-[2.5px] border-[#141414] p-4 flex flex-col gap-3"
+                  className="rounded-b-xl rounded-tr-xl border-[2.5px] border-[var(--charcoal-ink)] p-4 flex flex-col gap-3"
                 >
                   {/* Top Row: Code & Stars */}
                   <div className="flex items-baseline justify-between">
@@ -305,10 +344,15 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                     </span>
                   </div>
 
-                  {/* White Geometric Symbol Preview Strip */}
-                  <div className="bg-[#FAF8F5] border-2 border-[#141414] rounded-md px-3 py-2 flex items-center justify-around">
+                  {/* Geometric Symbol Preview Strip */}
+                  <div className="bg-[var(--paper-white)] border-2 border-[var(--charcoal-ink)] rounded-md px-3 py-2 flex items-center justify-around">
                     {cat.previewSymbols.map((sym, sIdx) => (
-                      <SymbolIconSvg key={sIdx} type={sym} size={24} />
+                      <SymbolIconSvg
+                        key={sIdx}
+                        type={sym}
+                        size={24}
+                        palette={activeTheme.palette}
+                      />
                     ))}
                   </div>
 
@@ -333,7 +377,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                           foldAudio.playCardstockFold();
                           onQuickPlayCategory(cat.id);
                         }}
-                        className="riso-btn flex-1 py-2.5 px-3 rounded-lg bg-[#FAF8F5] text-[#141414] font-poster text-sm uppercase tracking-wide whitespace-nowrap cursor-pointer"
+                        className="riso-btn flex-1 py-2.5 px-3 rounded-lg bg-[var(--paper-white)] text-[var(--charcoal-ink)] font-poster text-sm uppercase tracking-wide whitespace-nowrap cursor-pointer"
                       >
                         PLAY &gt;&gt;&gt;
                       </button>
@@ -344,7 +388,7 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                           foldAudio.playClick(640);
                           onOpenCategory(cat.id);
                         }}
-                        className="riso-btn py-2.5 px-3 rounded-lg bg-[#F2EFE9] text-[#141414] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap cursor-pointer"
+                        className="riso-btn py-2.5 px-3 rounded-lg bg-[var(--newsprint)] text-[var(--charcoal-ink)] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap cursor-pointer"
                       >
                         20 SHEETS
                       </button>
@@ -373,10 +417,10 @@ export const TitleLobby: React.FC<TitleLobbyProps> = ({
                   onSelectCategoryIdx(idx);
                 }}
                 aria-label={`Select volume ${cat.code} ${cat.title}`}
-                className={`h-8 px-2.5 rounded-lg border-2 border-[#141414] font-mono-riso text-xs font-extrabold transition-transform cursor-pointer whitespace-nowrap ${
+                className={`h-8 px-2.5 rounded-lg border-2 border-[var(--charcoal-ink)] font-mono-riso text-xs font-extrabold transition-transform cursor-pointer whitespace-nowrap ${
                   active
-                    ? 'bg-[#141414] text-[#FAF8F5] -translate-y-0.5'
-                    : 'bg-[#FAF8F5] text-[#141414] hover:-translate-y-0.5'
+                    ? 'bg-[var(--charcoal-ink)] text-[var(--on-ink)] -translate-y-0.5'
+                    : 'bg-[var(--paper-white)] text-[var(--charcoal-ink)] hover:-translate-y-0.5'
                 }`}
               >
                 {cat.code}

@@ -5,7 +5,13 @@ export type SymbolType =
   | 'square'
   | 'wild'
   | 'duplex_rb'
-  | 'duplex_br';
+  | 'duplex_br'
+  | 'carbon_circle'
+  | 'carbon_cross'
+  | 'carbon_triangle'
+  | 'carbon_square';
+
+export type LockKeySymbol = 'circle' | 'cross' | 'triangle' | 'square';
 
 export type FoldOrientation = 'v' | 'h';
 export type FoldDir = 'left' | 'right' | 'up' | 'down';
@@ -14,6 +20,17 @@ export interface OneWayTape {
   orientation: FoldOrientation;
   index: number;
   allowDir: FoldDir;
+}
+
+export interface PerforatedCrease {
+  orientation: FoldOrientation;
+  index: number;
+}
+
+export interface LockedCrease {
+  orientation: FoldOrientation;
+  index: number;
+  keySymbol: LockKeySymbol;
 }
 
 export interface SymbolPlacement {
@@ -39,12 +56,14 @@ export interface LevelDef {
   symbols: SymbolPlacement[];
   tapes: OneWayTape[];
   pins: PinPlacement[];
+  perforations?: PerforatedCrease[];
+  locks?: LockedCrease[];
   hintText: string;
 }
 
 export interface CategoryDef {
   id: string;
-  code: string; // '01'..'05'
+  code: string; // '01'..'06'
   title: string;
   subtitle: string;
   cardColor: string;
@@ -65,6 +84,8 @@ export interface BoardState {
   cols: number;
   grid: CellState[][];
   tapes: OneWayTape[];
+  perforations: PerforatedCrease[];
+  locks: LockedCrease[];
 }
 
 export interface FoldAction {
@@ -80,13 +101,22 @@ export interface MatchLocation {
   wasDuplexFlip: boolean;
 }
 
+export interface CarbonStampLocation {
+  r: number;
+  c: number;
+  color: string;
+}
+
 export interface FoldResult {
   nextState: BoardState;
   matchedLocations: MatchLocation[];
+  carbonStampedLocations: CarbonStampLocation[];
   duplexFlipped: boolean;
+  tornOff: boolean;
+  unlockedLocksCount: number;
 }
 
-export type BlockReason = 'tape' | 'pin' | null;
+export type BlockReason = 'tape' | 'pin' | 'lock' | null;
 
 export type ScreenMode = 'SPLASH' | 'TITLE' | 'LEVEL_SELECT' | 'DAILY' | 'PLAYING';
 

@@ -184,6 +184,44 @@ export function loadAudioSettings(): AudioSettings {
   }
 }
 
+const THEME_KEY = 'fold_fold_theme_v1';
+const SEEN_THEMES_KEY = 'fold_fold_seen_themes_v1';
+
+export function loadSelectedThemeId(): string {
+  try {
+    return localStorage.getItem(THEME_KEY) || 'bauhaus';
+  } catch {
+    return 'bauhaus';
+  }
+}
+
+export function saveSelectedThemeId(themeId: string) {
+  try {
+    localStorage.setItem(THEME_KEY, themeId);
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+export function loadSeenUnlockedThemes(): string[] {
+  try {
+    const raw = localStorage.getItem(SEEN_THEMES_KEY);
+    if (!raw) return ['bauhaus'];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : ['bauhaus'];
+  } catch {
+    return ['bauhaus'];
+  }
+}
+
+export function saveSeenUnlockedThemes(ids: string[]) {
+  try {
+    localStorage.setItem(SEEN_THEMES_KEY, JSON.stringify(ids));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
 export function saveAudioSettings(settings: AudioSettings) {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));

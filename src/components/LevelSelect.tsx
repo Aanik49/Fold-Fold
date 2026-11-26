@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowLeft, BookOpen, Music, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, BookOpen, Music, Palette, Volume2, VolumeX } from 'lucide-react';
 import { foldAudio } from '../game/audio';
-import { getSymbolColor } from '../game/engine';
+import { getSymbolColor, isCarbonSymbol } from '../game/engine';
+import { RisoPalette, RisoTheme } from '../game/themes';
 import { CategoryDef, LevelDef, ProgressMap } from '../game/types';
 
 interface LevelSelectProps {
@@ -11,6 +12,9 @@ interface LevelSelectProps {
   onSelectLevel: (level: LevelDef) => void;
   onBackToLobby: () => void;
   progress: ProgressMap;
+  activeTheme: RisoTheme;
+  hasNewThemeUnlock: boolean;
+  onOpenThemes: () => void;
   sfxEnabled: boolean;
   musicEnabled: boolean;
   onToggleSfx: () => void;
@@ -18,16 +22,19 @@ interface LevelSelectProps {
   onOpenGuide: () => void;
 }
 
-const MiniGridPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
+const MiniGridPreview: React.FC<{ level: LevelDef; palette: RisoPalette }> = ({
+  level,
+  palette,
+}) => {
   const symMap = new Map<string, string>();
   for (const s of level.symbols) {
-    symMap.set(`${s.r},${s.c}`, getSymbolColor(s.type));
+    symMap.set(`${s.r},${s.c}`, getSymbolColor(s.type, palette));
   }
   const pinSet = new Set(level.pins.map((p) => `${p.r},${p.c}`));
 
   return (
     <div
-      className="grid gap-1 p-1.5 bg-[#F2EFE9] border border-[#141414]/40 rounded"
+      className="grid gap-1 p-1.5 bg-[var(--newsprint)] border border-[var(--charcoal-ink)]/40 rounded"
       style={{
         gridTemplateColumns: `repeat(${level.cols}, minmax(0, 1fr))`,
       }}
@@ -41,7 +48,7 @@ const MiniGridPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
         return (
           <div
             key={key}
-            className="w-3 h-3 rounded-[2px] bg-[#FAF8F5] border border-[#141414]/35 flex items-center justify-center relative"
+            className="w-3 h-3 rounded-[2px] bg-[var(--paper-white)] border border-[var(--charcoal-ink)]/35 flex items-center justify-center relative"
           >
             {color && (
               <span
@@ -50,7 +57,7 @@ const MiniGridPreview: React.FC<{ level: LevelDef }> = ({ level }) => {
               />
             )}
             {isPinned && (
-              <span className="absolute -top-0.5 -left-0.5 w-1.5 h-1.5 rounded-full bg-[#F4A261] border border-[#141414]" />
+              <span className="absolute -top-0.5 -left-0.5 w-1.5 h-1.5 rounded-full bg-[var(--mustard-yellow)] border border-[var(--charcoal-ink)]" />
             )}
           </div>
         );
@@ -66,6 +73,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
   onSelectLevel,
   onBackToLobby,
   progress,
+  activeTheme,
+  hasNewThemeUnlock,
+  onOpenThemes,
   sfxEnabled,
   musicEnabled,
   onToggleSfx,
@@ -83,7 +93,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
   return (
     <div className="w-full h-full flex flex-col riso-grain-bg overflow-hidden">
       {/* Top Bar */}
-      <header className="px-3.5 py-3 sm:px-7 sm:py-4 border-b-[2.5px] border-[#141414] bg-[#FAF8F5] flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 shrink-0">
+      <header className="px-3.5 py-3 sm:px-7 sm:py-4 border-b-[2.5px] border-[var(--charcoal-ink)] bg-[var(--paper-white)] flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 shrink-0">
         <div className="flex items-center justify-between md:justify-start gap-2.5 min-w-0">
           <button
             onClick={() => {
@@ -112,10 +122,10 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                       ? { backgroundColor: cat.cardColor, color: cat.cardText }
                       : undefined
                   }
-                  className={`h-10 px-3 rounded-xl border-2 border-[#141414] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 transition-transform cursor-pointer ${
+                  className={`h-10 px-3 rounded-xl border-2 border-[var(--charcoal-ink)] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 transition-transform cursor-pointer ${
                     isActive
-                      ? 'shadow-[2px_2px_0px_#141414]'
-                      : 'bg-[#F2EFE9] text-[#141414] hover:bg-[#FAF8F5]'
+                      ? 'shadow-[2px_2px_0px_var(--charcoal-ink)]'
+                      : 'bg-[var(--newsprint)] text-[var(--charcoal-ink)] hover:bg-[var(--paper-white)]'
                   }`}
                 >
                   {cat.code} · {cat.title}
@@ -124,8 +134,21 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
             })}
           </div>
 
-          {/* Mobile Audio Controls on Row 1 */}
+          {/* Mobile Controls on Row 1 */}
           <div className="flex md:hidden items-center gap-1.5 shrink-0 pr-0.5">
+            <button
+              onClick={() => {
+                foldAudio.playClick(590);
+                onOpenThemes();
+              }}
+              aria-label="Paper and Ink Themes"
+              className="riso-btn relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <Palette className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
+              {hasNewThemeUnlock && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--signal-red)] border-[1.5px] border-[var(--charcoal-ink)]" />
+              )}
+            </button>
             <button
               onClick={() => {
                 foldAudio.playClick(560);
@@ -144,7 +167,11 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
               }`}
             >
               <Music
-                className={`w-4 h-4 ${musicEnabled ? 'text-[#1D3557]' : 'text-[#E63946]'}`}
+                className={`w-4 h-4 ${
+                  musicEnabled
+                    ? 'text-[var(--cobalt-blue)]'
+                    : 'text-[var(--signal-red)]'
+                }`}
                 strokeWidth={2.5}
               />
             </button>
@@ -154,9 +181,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
               className="riso-btn w-9 h-9 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
             >
               {sfxEnabled ? (
-                <Volume2 className="w-4 h-4 text-[#141414]" strokeWidth={2.5} />
+                <Volume2 className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.5} />
               ) : (
-                <VolumeX className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+                <VolumeX className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
               )}
             </button>
           </div>
@@ -178,10 +205,10 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                     ? { backgroundColor: cat.cardColor, color: cat.cardText }
                     : undefined
                 }
-                className={`h-8 flex-1 min-w-[52px] px-2 rounded-lg border-2 border-[#141414] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap cursor-pointer ${
+                className={`h-8 flex-1 min-w-[52px] px-2 rounded-lg border-2 border-[var(--charcoal-ink)] font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'shadow-[2px_2px_0px_#141414]'
-                    : 'bg-[#F2EFE9] text-[#141414]'
+                    ? 'shadow-[2px_2px_0px_var(--charcoal-ink)]'
+                    : 'bg-[var(--newsprint)] text-[var(--charcoal-ink)]'
                 }`}
               >
                 {cat.code}
@@ -190,8 +217,23 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
           })}
         </div>
 
-        {/* Desktop Audio Controls */}
+        {/* Desktop Controls */}
         <div className="hidden md:flex items-center gap-2 shrink-0 pr-0.5">
+          <button
+            onClick={() => {
+              foldAudio.playClick(590);
+              onOpenThemes();
+            }}
+            title={`Paper & Ink Themes (${activeTheme.name})`}
+            aria-label="Paper and Ink Themes"
+            className="riso-btn relative h-10 px-3 rounded-xl flex items-center gap-1.5 font-mono-riso text-xs font-extrabold uppercase whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Palette className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
+            <span>Inks</span>
+            {hasNewThemeUnlock && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--signal-red)] border-[1.5px] border-[var(--charcoal-ink)]" />
+            )}
+          </button>
           <button
             onClick={() => {
               foldAudio.playClick(560);
@@ -210,7 +252,11 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
             }`}
           >
             <Music
-              className={`w-4 h-4 ${musicEnabled ? 'text-[#1D3557]' : 'text-[#E63946]'}`}
+              className={`w-4 h-4 ${
+                musicEnabled
+                  ? 'text-[var(--cobalt-blue)]'
+                  : 'text-[var(--signal-red)]'
+              }`}
               strokeWidth={2.5}
             />
           </button>
@@ -220,9 +266,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
             className="riso-btn w-10 h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
           >
             {sfxEnabled ? (
-              <Volume2 className="w-4 h-4 text-[#141414]" strokeWidth={2.5} />
+              <Volume2 className="w-4 h-4 text-[var(--charcoal-ink)]" strokeWidth={2.5} />
             ) : (
-              <VolumeX className="w-4 h-4 text-[#E63946]" strokeWidth={2.5} />
+              <VolumeX className="w-4 h-4 text-[var(--signal-red)]" strokeWidth={2.5} />
             )}
           </button>
         </div>
@@ -237,7 +283,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
               backgroundColor: activeCategory.cardColor,
               color: activeCategory.cardText,
             }}
-            className="rounded-2xl border-[2.5px] border-[#141414] shadow-[5px_5px_0px_#141414] p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+            className="rounded-2xl border-[2.5px] border-[var(--charcoal-ink)] shadow-[5px_5px_0px_var(--charcoal-ink)] p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
           >
             <div>
               <div className="font-mono-riso text-xs font-extrabold opacity-85 uppercase tracking-wider">
@@ -276,6 +322,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                 (s) => s.type === 'duplex_rb' || s.type === 'duplex_br'
               );
               const hasWild = lvl.symbols.some((s) => s.type === 'wild');
+              const hasPerf = (lvl.perforations?.length ?? 0) > 0;
+              const hasCarbon = lvl.symbols.some((s) => isCarbonSymbol(s.type));
+              const hasLock = (lvl.locks?.length ?? 0) > 0;
 
               return (
                 <button
@@ -285,9 +334,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                     foldAudio.playCardstockFold();
                     onSelectLevel(lvl);
                   }}
-                  className={`riso-btn rounded-xl p-3.5 text-left flex flex-col justify-between gap-2.5 cursor-pointer ${
-                    isCleared ? 'bg-[#FAF8F5]' : 'bg-[#FAF8F5]'
-                  }`}
+                  className="riso-btn rounded-xl p-3.5 text-left flex flex-col justify-between gap-2.5 cursor-pointer bg-[var(--paper-white)]"
                 >
                   {/* Card Top Row */}
                   <div className="flex items-start justify-between gap-1">
@@ -295,10 +342,12 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                       style={{
                         backgroundColor: isCleared
                           ? activeCategory.cardColor
-                          : '#F2EFE9',
-                        color: isCleared ? activeCategory.cardText : '#141414',
+                          : 'var(--newsprint)',
+                        color: isCleared
+                          ? activeCategory.cardText
+                          : 'var(--charcoal-ink)',
                       }}
-                      className="font-poster text-sm px-2 py-0.5 rounded border-[1.8px] border-[#141414]"
+                      className="font-poster text-sm px-2 py-0.5 rounded border-[1.8px] border-[var(--charcoal-ink)]"
                     >
                       {lvl.code}
                     </span>
@@ -311,7 +360,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                         <span
                           key={s}
                           className={
-                            s < stars ? 'text-[#E63946]' : 'text-[#141414]/20'
+                            s < stars
+                              ? 'text-[var(--signal-red)]'
+                              : 'text-[var(--charcoal-ink)]/20'
                           }
                         >
                           ★
@@ -322,37 +373,52 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
 
                   {/* Mini Geometric Board Preview */}
                   <div className="flex items-center justify-center py-1">
-                    <MiniGridPreview level={lvl} />
+                    <MiniGridPreview level={lvl} palette={activeTheme.palette} />
                   </div>
 
                   {/* Card Footer */}
                   <div>
-                    <div className="font-bold text-xs text-[#141414] truncate">
+                    <div className="font-bold text-xs text-[var(--charcoal-ink)] truncate">
                       {lvl.title}
                     </div>
-                    <div className="mt-0.5 flex items-center justify-between font-mono-riso text-[10px] font-bold text-[#141414]/65">
+                    <div className="mt-0.5 flex items-center justify-between font-mono-riso text-[10px] font-bold text-[var(--charcoal-ink)]/65">
                       <span>
                         {lvl.rows}×{lvl.cols} · PAR {lvl.par}
                       </span>
                       <span className="flex items-center gap-1">
                         {hasTape && (
-                          <span title="One-Way Tape" className="text-[#D97706]">
+                          <span title="One-Way Tape" className="text-[var(--mustard-yellow)]">
                             ▸
                           </span>
                         )}
                         {hasDuplex && (
-                          <span title="Duplex Ink" className="text-[#1D3557]">
+                          <span title="Duplex Ink" className="text-[var(--cobalt-blue)]">
                             ◐
                           </span>
                         )}
                         {hasWild && (
-                          <span title="Wild Prism" className="text-[#1E6B5C]">
+                          <span title="Wild Prism" className="text-[var(--riso-teal)]">
                             ◆
                           </span>
                         )}
                         {hasPin && (
-                          <span title="Brass Pin" className="text-[#141414]">
+                          <span title="Brass Pin" className="text-[var(--charcoal-ink)]">
                             ●
+                          </span>
+                        )}
+                        {hasPerf && (
+                          <span title="Perforated Tear Line" className="text-[var(--signal-red)]">
+                            ✂
+                          </span>
+                        )}
+                        {hasCarbon && (
+                          <span title="Carbon Copy Ink" className="text-[var(--charcoal-ink)] font-extrabold">
+                            2×
+                          </span>
+                        )}
+                        {hasLock && (
+                          <span title="Locked Crease" className="text-[var(--cobalt-blue)]">
+                            ⚿
                           </span>
                         )}
                       </span>
